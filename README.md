@@ -1,50 +1,69 @@
 # Kopi Parang Keuangan
 
-Spesifikasi dan prototipe web app akuntansi Kopi Parang, pengganti file Excel Laporan Keuangan 2026 v2.
-Diekspor dari Claude pada 20 Oktober 2026.
+Web app akuntansi Kopi Parang, pengganti file Excel Laporan Keuangan 2026 v2.
 
 **Aplikasi terpisah.** Tidak terhubung ke Majoo maupun Parang-ops. Parang-ops mengurus barang
 (stok, resep, staf); aplikasi ini mengurus uang (omzet, jurnal, aset, pajak, laporan).
 Tiga angka bulanan dari Parang-ops diketik manual saat tutup buku.
 
-**Status: prototipe.** Belum ada database. Semua yang diinput di prototipe hilang saat halaman dimuat ulang.
-Web app sungguhannya dibangun tim developer berdasarkan `docs/SPESIFIKASI.md`.
+**Stack sama dengan Parang-ops** (tapi project, database, dan sesi terpisah):
+
+| | |
+| --- | --- |
+| Frontend | React 18 + TypeScript + Tailwind CSS (Vite), Lucide, xlsx, jsPDF |
+| Backend | Node.js + Express + TypeScript |
+| Database | PostgreSQL via Prisma ORM |
 
 ## Isi
 
 | Path | Isi |
 | --- | --- |
-| `docs/SPESIFIKASI.md` | Spesifikasi lengkap: batas dengan Parang-ops, peran, modul, model data, rumus, migrasi, fase |
-| `prototype/` | Prototipe yang bisa diklik, data asli Jan – 11 Okt 2026 |
-| `prototype/engine.js` | Mesin hitung laporan (hasil sama persis dengan Excel) |
-| `scripts/check-patokan.js` | Uji otomatis angka patokan + skenario angka Parang-ops |
+| `backend/` | API Express + Prisma. Mesin hitung di `src/engine/` (hasil sama persis dengan Excel) |
+| `frontend/` | UI React + Tailwind |
+| `.agents/` | Pedoman untuk agen AI: business logic, tech stack backend & frontend |
+| `docs/SPESIFIKASI.md` | Spesifikasi lengkap (sumber kebenaran) |
+| `prototype/` | Prototipe HTML lama + `data.js` (data asli Jan – 11 Okt 2026, dipakai seed) |
+| `scripts/check-patokan.js` | Uji angka patokan untuk mesin prototipe (`prototype/engine.js`) |
 | `original/` | File artifact asli satu halaman, untuk referensi |
-| `CHANGELOG.md` | Perubahan dari ekspor sebelumnya |
 
-## Jalankan prototipe
+## Menjalankan (dev)
+
+Butuh Node.js 20+ dan PostgreSQL. Buat database & user **khusus** aplikasi ini (bukan database Parang-ops).
 
 ```bash
-cd prototype
-python3 -m http.server 8000
+# 1. Backend — http://localhost:4100
+cd backend
+cp .env.example .env          # isi DATABASE_URL, KPK_SESSION_SECRET, SEED_OWNER_*
+npm install
+npx prisma migrate deploy     # buat tabel
+npm run seed                  # impor data asli Excel v2 + akun owner & kasir dari .env
+npm run dev
+
+# 2. Frontend — http://localhost:5174 (proxy /api → 4100)
+cd ../frontend
+npm install
+npm run dev
 ```
 
-Buka http://localhost:8000. Ganti peran Owner / Admin / Kasir di kanan atas (PIN kasir demo: 123456).
-Coba Tutup Buku Oktober: isi angka Parang-ops, lalu lihat jurnal penyesuaian persediaan dan riwayat cek.
+Masuk sebagai owner dengan `SEED_OWNER_EMAIL` / `SEED_OWNER_PASSWORD`, atau sebagai kasir dengan
+`SEED_KASIR_PIN`. Aktifkan verifikasi 2 langkah di menu **Pengguna & Riwayat**.
+
+Port 4100/5174 sengaja berbeda dari Parang-ops (4000/5173) supaya keduanya bisa jalan bersamaan.
 
 ## Cek angka
 
 ```bash
-node scripts/check-patokan.js
+cd backend && npm run check:patokan
 ```
 
-Harus menampilkan "Semua angka cocok dengan Excel v2, dan skenario Parang-ops lolos". Skrip ini juga bisa
-dipakai tim untuk membandingkan hasil web app baru.
+Harus menampilkan "Semua angka cocok dengan Excel v2, dan skenario Parang-ops lolos". Wajib dijalankan
+setiap kali mengubah `backend/src/engine/`.
 
 ## Penting
 
 Repo ini berisi data keuangan asli Kopi Parang. Buat repository GitHub sebagai **Private**.
+Jangan commit file `.env`.
 
-## Kerja dengan Claude Code
+## Kerja dengan Claude Code / agen AI
 
-Buka folder ini di terminal lalu jalankan `claude`. Claude Code membaca `CLAUDE.md` untuk konteks proyek,
-termasuk aturan agar aplikasi ini tidak bertabrakan dengan Parang-ops.
+Buka folder ini lalu jalankan `claude`. Konteks proyek ada di `CLAUDE.md`, pedoman detail di `.agents/`.

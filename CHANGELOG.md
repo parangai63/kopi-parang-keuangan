@@ -1,5 +1,33 @@
 # Perubahan
 
+## 20 Oktober 2026 (sore): stack disamakan dengan Parang-ops
+
+Prototipe HTML/JS dipindahkan ke stack yang sama dengan Parang-ops, sebagai project yang tetap terpisah.
+
+### Backend baru (`backend/`) — Express + TypeScript + Prisma + PostgreSQL
+- `prisma/schema.prisma` + migrasi awal: 16 tabel sesuai bagian Model data di spesifikasi (nominal BigInt,
+  soft delete, audit log).
+- Mesin hitung `src/engine/engine.ts`: port 1:1 dari `prototype/engine.js`. `npm run check:patokan` lolos
+  semua angka patokan Excel v2 + skenario Parang-ops.
+- API per modul dengan hak akses per peran di server: omzet harian (aturan per field untuk kasir),
+  jurnal (nomor bukti otomatis, void owner), aset, pihak, event, akun, pengaturan, tutup buku
+  (SSPD, 3 angka Parang-ops, tutup & buka kembali), 10 laporan, pengguna, audit log.
+- Login: email + kata sandi + 2FA TOTP (owner/admin), nama + PIN 6 digit (kasir), kunci 15 menit setelah
+  5 kali salah, cookie sesi `kpk_session`.
+- `prisma/seed.ts`: impor data asli dari `prototype/data.js` (35 akun, 1.261 jurnal, 284 hari omzet,
+  18 aset, SSPD Jan–Sep). Bon karyawan lama → pihak "Bon karyawan (data Excel)".
+- Diuji end-to-end di PostgreSQL: laporan dari database cocok sampai rupiah dengan Excel.
+
+### Frontend baru (`frontend/`) — React 18 + Vite + TypeScript + Tailwind
+- Token desain sama dengan Parang-ops. Halaman: Login, Ringkasan, Omzet Harian (kalender), Omzet Hari Ini
+  (kasir, HP), Jurnal, Laporan (Laba Rugi, Neraca, Arus Kas, Perubahan Ekuitas, Neraca Saldo, Buku Besar),
+  Aset Tetap, Pihak, Tutup Buku, Akun & Pengaturan, Pengguna & Riwayat.
+- Ekspor Excel/PDF dengan kop Kopi Parang di setiap laporan.
+
+### Lain-lain
+- Direktori `.agents/` baru: `business-logic.md`, `tech-stack-backend.md`, `tech-stack-frontend.md`.
+- `README.md` dan `CLAUDE.md` diperbarui untuk stack baru. `prototype/` tetap disimpan sebagai acuan.
+
 ## 20 Oktober 2026 (siang): dipisahkan tegas dari Parang-ops
 
 Keputusan owner: Kopi Parang Keuangan adalah aplikasi terpisah dari Parang-ops dan tidak terhubung ke Majoo.

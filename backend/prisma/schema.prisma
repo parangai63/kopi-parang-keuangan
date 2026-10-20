@@ -1,0 +1,358 @@
+// ==========================================
+// Kopi Parang Keuangan — Prisma Schema
+// Database: PostgreSQL (database sendiri, mis. `kopiparang_keuangan`)
+//
+// Sumber kebenaran: docs/SPESIFIKASI.md bagian "Model data".
+// - Semua nominal Rupiah = BigInt (integer), bukan Decimal/float.
+// - Tabel transaksi punya created_by/at, updated_by/at, voided_at (soft delete).
+// - TIDAK ada tabel/ID bersama dengan Parang-ops. `parties.name` hanya
+//   disamakan ejaannya dengan master Staff/Suppliers Parang-ops.
+// ==========================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  KASIR
+}
+
+enum AccountGroup {
+  ASET
+  LIABILITAS
+  EKUITAS
+  PENDAPATAN
+  BEBAN
+}
+
+enum NormalSide {
+  D
+  K
+}
+
+enum CashCategory {
+  KAS
+  OPERASI
+  INVESTASI
+  PENDANAAN
+  NONKAS
+}
+
+enum JournalKind {
+  UMUM
+  OTOMATIS
+  PENYESUAIAN
+}
+
+enum PartyType {
+  KARYAWAN
+  SUPPLIER
+  PEMBERI_PINJAMAN
+  OWNER
+  LAINNYA
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  VOID
+  VERIFY
+  CLOSE
+  REOPEN
+}
+
+/// Satu baris per tahun buku.
+model Setting {
+  id                      Int      @id @default(autoincrement())
+  fiscalYear              Int      @unique @map("fiscal_year")
+  businessName            String   @default("Kopi Parang") @map("business_name")
+  /// 0 = belum ada bulan ditutup, 1–12 = bulan terakhir yang ditutup.
+  closedMonth             Int      @default(0) @map("closed_month")
+  pbjtRate                Decimal  @default(0.1) @map("pbjt_rate") @db.Decimal(6, 4)
+  priceIncludesTax        Boolean  @default(true) @map("price_includes_tax")
+  accruePbjt              Boolean  @default(true) @map("accrue_pbjt")
+  revenueTarget           BigInt   @default(100000000) @map("revenue_target")
+  foodCostLimit           Decimal  @default(0.35) @map("food_cost_limit") @db.Decimal(6, 4)
+  payrollLimit            Decimal  @default(0.30) @map("payroll_limit") @db.Decimal(6, 4)
+  occupancyLimit          Decimal  @default(0.10) @map("occupancy_limit") @db.Decimal(6, 4)
+  primeCostLimit          Decimal  @default(0.65) @map("prime_cost_limit") @db.Decimal(6, 4)
+  netMarginTarget         Decimal  @default(0.10) @map("net_margin_target") @db.Decimal(6, 4)
+  cashDiffThreshold       BigInt   @default(50000) @map("cash_diff_threshold")
+  opsPurchaseTolerancePct Decimal  @default(0.05) @map("ops_purchase_tolerance_pct") @db.Decimal(6, 4)
+  opsSalesTolerancePct    Decimal  @default(0.02) @map("ops_sales_tolerance_pct") @db.Decimal(6, 4)
+  updatedById             Int?     @map("updated_by")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model Account {
+  id             Int          @id @default(autoincrement())
+  code           String       @unique
+  name           String       @unique
+  group          AccountGroup
+  reportLine     String?      @map("report_line")
+  normalSide     NormalSide   @map("normal_side")
+  cashCategory   CashCategory @map("cash_category")
+  /// OP1–OP7, IN1, FN1–FN3; null untuk akun KAS/NONKAS.
+  cashFlowLine   String?      @map("cash_flow_line")
+  /// Saldo awal 1 Januari, selalu positif sesuai saldo normal.
+  /// Untuk 3101 Ekuitas Kopi Parang diabaikan: dihitung otomatis oleh mesin.
+  openingBalance BigInt       @default(0) @map("opening_balance")
+  description    String?
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  journalLines          JournalLine[]
+  openingBalanceDetails OpeningBalanceDetail[]
+  fixedAssets           FixedAsset[]
+
+  @@map("accounts")
+}
+
+model OpeningBalanceDetail {
+  id        Int     @id @default(autoincrement())
+  accountId Int     @map("account_id")
+  partyId   Int     @map("party_id")
+  amount    BigInt
+  account   Account @relation(fields: [accountId], references: [id])
+  party     Party   @relation(fields: [partyId], references: [id])
+
+  @@unique([accountId, partyId])
+  @@map("opening_balance_details")
+}
+
+/// Karyawan & supplier. Ejaan nama = master Parang-ops, tanpa ID bersama.
+model Party {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  type      PartyType
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  journalEntries        JournalEntry[]
+  staffBons             DailyStaffBon[]
+  openingBalanceDetails OpeningBalanceDetail[]
+
+  @@map("parties")
+}
+
+model Event {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  startDate DateTime? @map("start_date") @db.Date
+  notes     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  journalEntries JournalEntry[]
+  eventNotes     EventNote[]
+
+  @@map("events")
+}
+
+model EventNote {
+  id        Int      @id @default(autoincrement())
+  eventId   Int      @map("event_id")
+  note      String
+  createdAt DateTime @default(now()) @map("created_at")
+  event     Event    @relation(fields: [eventId], references: [id])
+
+  @@map("event_notes")
+}
+
+model JournalEntry {
+  id          Int         @id @default(autoincrement())
+  /// JU-0001 untuk UMUM; AUTO-<closingId>-NN untuk jurnal sistem yang dibekukan saat tutup buku.
+  voucherNo   String      @unique @map("voucher_no")
+  date        DateTime    @db.Date
+  description String
+  /// Nomor nota — dicocokkan manual dengan Stock Purchase di Parang-ops.
+  receiptNo   String?     @map("receipt_no")
+  kind        JournalKind @default(UMUM)
+  eventId     Int?        @map("event_id")
+  partyId     Int?        @map("party_id")
+  /// Diisi untuk jurnal sistem, mis. "daily_sales" / "depreciation" / "inventory".
+  sourceType  String?     @map("source_type")
+  /// Mis. "2026-10" atau "2026-10:bon:Nama Karyawan".
+  sourceRef   String?     @map("source_ref")
+  createdById Int?        @map("created_by")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedById Int?        @map("updated_by")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  voidedAt    DateTime?   @map("voided_at")
+  voidedById  Int?        @map("voided_by")
+
+  event Event?        @relation(fields: [eventId], references: [id])
+  party Party?        @relation(fields: [partyId], references: [id])
+  lines JournalLine[]
+
+  @@index([date])
+  @@index([kind, date])
+  @@map("journal_entries")
+}
+
+/// Form tetap 1 debet + 1 kredit (= 2 baris), tapi struktur siap untuk jurnal majemuk.
+model JournalLine {
+  id        Int          @id @default(autoincrement())
+  entryId   Int          @map("entry_id")
+  accountId Int          @map("account_id")
+  debit     BigInt       @default(0)
+  credit    BigInt       @default(0)
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account   Account      @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@map("journal_lines")
+}
+
+/// Angka laporan tutup kasir Majoo + realisasi. NULL = belum diisi (beda dengan 0).
+/// Kolom turunan (total, selisih, omzet bersih, status) dihitung, tidak disimpan.
+model DailySale {
+  id           Int       @id @default(autoincrement())
+  date         DateTime  @unique @db.Date
+  cashPos      BigInt?   @map("cash_pos")
+  edcPos       BigInt?   @map("edc_pos")
+  cashShift1   BigInt?   @map("cash_shift1")
+  cashShift2   BigInt?   @map("cash_shift2")
+  edcSettled   BigInt?   @map("edc_settled")
+  compliment   BigInt?
+  ownerBill    BigInt?   @map("owner_bill")
+  itemsSold    Int?      @map("items_sold")
+  transactions Int?
+  verifiedById Int?      @map("verified_by")
+  verifiedAt   DateTime? @map("verified_at")
+  createdById  Int?      @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedById  Int?      @map("updated_by")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  staffBons DailyStaffBon[]
+
+  @@map("daily_sales")
+}
+
+/// Bon karyawan per orang per hari. Σ per tanggal = staff_bon di rumus omzet harian.
+model DailyStaffBon {
+  id          Int       @id @default(autoincrement())
+  dailySaleId Int       @map("daily_sale_id")
+  partyId     Int       @map("party_id")
+  amount      BigInt
+  dailySale   DailySale @relation(fields: [dailySaleId], references: [id], onDelete: Cascade)
+  party       Party     @relation(fields: [partyId], references: [id])
+
+  @@unique([dailySaleId, partyId])
+  @@map("daily_staff_bons")
+}
+
+model FixedAsset {
+  id              Int       @id @default(autoincrement())
+  name            String
+  acquiredOn      DateTime  @map("acquired_on") @db.Date
+  cost            BigInt
+  usefulLifeYears Int       @map("useful_life_years")
+  accountId       Int?      @map("account_id")
+  createdById     Int?      @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedById     Int?      @map("updated_by")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  voidedAt        DateTime? @map("voided_at")
+  account         Account?  @relation(fields: [accountId], references: [id])
+
+  @@map("fixed_assets")
+}
+
+/// Data SSPD PBJT, diisi di wizard Tutup Buku.
+model TaxFiling {
+  id              Int       @id @default(autoincrement())
+  year            Int
+  month           Int
+  reportedRevenue BigInt?   @map("reported_revenue")
+  pbjtPaid        BigInt?   @map("pbjt_paid")
+  sspdNo          String?   @map("sspd_no")
+  filedOn         DateTime? @map("filed_on") @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([year, month])
+  @@map("tax_filings")
+}
+
+/// Tiga angka dari Parang-ops, DIKETIK MANUAL saat tutup buku. Tidak ada koneksi otomatis.
+model OpsMonthlyFigure {
+  id             Int      @id @default(autoincrement())
+  year           Int
+  month          Int
+  stockValue     BigInt   @map("stock_value")
+  purchasesTotal BigInt   @map("purchases_total")
+  salesTotal     BigInt?  @map("sales_total")
+  note           String?
+  enteredById    Int?     @map("entered_by")
+  enteredAt      DateTime @default(now()) @map("entered_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([year, month])
+  @@map("ops_monthly_figures")
+}
+
+model PeriodClosing {
+  id           Int       @id @default(autoincrement())
+  year         Int
+  month        Int
+  closedById   Int?      @map("closed_by")
+  closedAt     DateTime  @default(now()) @map("closed_at")
+  reopenedById Int?      @map("reopened_by")
+  reopenedAt   DateTime? @map("reopened_at")
+
+  @@index([year, month])
+  @@map("period_closings")
+}
+
+/// Tidak berbagi tabel pengguna dengan Parang-ops.
+model User {
+  id                Int       @id @default(autoincrement())
+  name              String
+  /// Wajib untuk owner/admin; kasir boleh kosong.
+  email             String?   @unique
+  role              Role
+  passwordHash      String?   @map("password_hash")
+  totpSecret        String?   @map("totp_secret")
+  totpEnabled       Boolean   @default(false) @map("totp_enabled")
+  pinHash           String?   @map("pin_hash")
+  failedLoginCount  Int       @default(0) @map("failed_login_count")
+  lockedUntil       DateTime? @map("locked_until")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+/// Jejak audit — tidak bisa dihapus dari aplikasi.
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  userId    Int?        @map("user_id")
+  tableName String      @map("table_name")
+  recordId  String      @map("record_id")
+  action    AuditAction
+  before    Json?
+  after     Json?
+  at        DateTime    @default(now())
+  user      User?       @relation(fields: [userId], references: [id])
+
+  @@index([tableName, recordId])
+  @@index([at])
+  @@map("audit_logs")
+}
