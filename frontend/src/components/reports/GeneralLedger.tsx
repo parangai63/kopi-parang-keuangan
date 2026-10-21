@@ -6,7 +6,7 @@ import { ErrorBox, Field, Loading } from "../ui";
 import AccountSelect from "../AccountSelect";
 import ExportMenu from "../ExportMenu";
 
-/** Buku besar: semua transaksi satu akun s.d. bulan tutup buku, dengan saldo berjalan. */
+/** Buku besar: semua transaksi satu akun s.d. bulan tutup buku, dengan saldo berjalan (repBB di rancangan original). */
 export default function GeneralLedger() {
   const [account, setAccount] = useState("Kas Bank");
   const accounts = useApi(() => masterApi.accounts(), []);
@@ -14,16 +14,16 @@ export default function GeneralLedger() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end gap-3 mb-3">
-        <Field label="Akun" className="w-full sm:w-80">
+      <div className="toolbar">
+        <Field label="Akun" className="q">
           <AccountSelect accounts={accounts.data ?? []} value={account} byName onChange={(v) => setAccount(String(v))} />
         </Field>
         {data && (
-          <div className="flex flex-wrap gap-4 text-xs flex-1">
-            <span>Saldo normal <b>{data.account.normal === "D" ? "Debet" : "Kredit"}</b></span>
-            <span>Total debet <b className="tnum">{num(data.totalDebit)}</b></span>
-            <span>Total kredit <b className="tnum">{num(data.totalCredit)}</b></span>
-            <span>Saldo akhir <b className="tnum">{acct(data.closingBalance)}</b></span>
+          <div className="sumstrip" style={{ margin: 0 }}>
+            <span>Saldo normal<b>{data.account.normal === "D" ? "Debet" : "Kredit"}</b></span>
+            <span>Total debet<b>{num(data.totalDebit)}</b></span>
+            <span>Total kredit<b>{num(data.totalCredit)}</b></span>
+            <span>Saldo akhir<b>{acct(data.closingBalance)}</b></span>
           </div>
         )}
         {data && (
@@ -53,28 +53,28 @@ export default function GeneralLedger() {
       ) : error || !data ? (
         <ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} />
       ) : (
-        <div className="bg-white rounded-xl border border-parang-divider overflow-x-auto">
-          <table className="w-full text-sm tnum">
-            <thead className="text-xs text-parang-subtle bg-parang-bg text-left">
+        <div className="tw">
+          <table className="t rep">
+            <thead>
               <tr>
-                <th className="px-3 py-2">Tanggal</th><th className="px-3">No. bukti</th><th className="px-3">Keterangan</th>
-                <th className="px-3">Akun lawan</th><th className="px-3 text-right">Debet</th><th className="px-3 text-right">Kredit</th><th className="px-3 text-right">Saldo</th>
+                <th>Tanggal</th><th>No. bukti</th><th>Keterangan</th><th>Akun lawan</th>
+                <th className="r">Debet</th><th className="r">Kredit</th><th className="r">Saldo</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="bg-parang-bg/60 font-semibold">
-                <td className="px-3 py-1.5">1 Jan</td><td /><td className="px-3">Saldo awal</td><td /><td /><td />
-                <td className="px-3 text-right">{acct(data.openingBalance)}</td>
+              <tr className="h">
+                <td>1 Jan</td><td /><td>Saldo awal</td><td /><td /><td />
+                <td className="r">{acct(data.openingBalance)}</td>
               </tr>
               {data.lines.map((l, i) => (
-                <tr key={i} className="border-t border-parang-divider/60">
-                  <td className="px-3 py-1.5 whitespace-nowrap">{tgl(l.date)}</td>
-                  <td className="px-3 font-mono text-xs">{l.kind === "UMUM" ? l.voucherNo : "otomatis"}</td>
-                  <td className="px-3 min-w-[220px]">{l.description}</td>
-                  <td className="px-3">{l.counterAccount}</td>
-                  <td className="px-3 text-right">{l.debit ? num(l.debit) : ""}</td>
-                  <td className="px-3 text-right">{l.credit ? num(l.credit) : ""}</td>
-                  <td className="px-3 text-right">{acct(l.balance)}</td>
+                <tr key={i}>
+                  <td className="acc">{tgl(l.date)}</td>
+                  <td className="mono acc">{l.kind === "UMUM" ? l.voucherNo : "otomatis"}</td>
+                  <td className="ket">{l.description}</td>
+                  <td className="acc">{l.counterAccount}</td>
+                  <td className="r">{l.debit ? num(l.debit) : ""}</td>
+                  <td className="r">{l.credit ? num(l.credit) : ""}</td>
+                  <td className="r">{acct(l.balance)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { reportApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { BLN3, lastDay, periodLabel, tgl } from "../utils/format";
@@ -29,16 +30,16 @@ function Statement({ title, load }: { title: string; load: () => Promise<Built> 
   const { data, loading, error, reload } = useApi(load, [load]);
   if (loading) return <Loading />;
   if (error || !data) return <ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} />;
-  if (!data.closedMonth) return <p className="text-sm text-parang-subtle">Belum ada bulan yang ditutup.</p>;
+  if (!data.closedMonth) return <p className="note">Belum ada bulan yang ditutup.</p>;
   const period = periodLabel(data.year, data.closedMonth);
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="text-xs font-semibold tracking-wide text-parang-subtle">KOPI PARANG · {period} · dalam Rupiah</div>
+      <div className="rep-bar">
+        <div className="rep-head">KOPI PARANG · {period} · dalam Rupiah</div>
         <ExportMenu build={() => ({ filename: title.toLowerCase().replace(/\s+/g, "-"), title, period, ...toExport(data.columns, data.rows, data.firstHeader) })} />
       </div>
       <ReportTable columns={data.columns} rows={data.rows} firstHeader={data.firstHeader} />
-      {data.note && <p className="text-xs text-parang-subtle mt-3">{data.note}</p>}
+      {data.note && <p className="note" style={{ marginTop: 10 }}>{data.note}</p>}
     </>
   );
 }
@@ -78,18 +79,13 @@ const LOADERS: Record<Exclude<Tab, "bb">, [string, () => Promise<Built>]> = {
 
 export default function ReportsPage() {
   const [tab, setTab] = useState<Tab>("lr");
+  const { user } = useAuth();
   return (
     <>
-      <PageHeader title="Laporan keuangan" subtitle="Hanya bulan yang sudah ditutup. Semua angka dihitung server dari jurnal & omzet harian." />
-      <div className="flex gap-1 overflow-x-auto border-b border-parang-divider mb-4" role="tablist">
+      <PageHeader title="Laporan keuangan" subtitle={user ? periodLabel(user.fiscalYear, user.closedMonth) : ""} />
+      <div className="tabs" role="tablist">
         {TABS.map(([k, l]) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${tab === k ? "border-accent-primary text-accent-primaryDeep font-semibold" : "border-transparent text-parang-subtle"}`}
-          >
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
             {l}
           </button>
         ))}

@@ -1,26 +1,46 @@
-// Komponen UI kecil yang dipakai di semua halaman.
+// Komponen UI kecil yang dipakai di semua halaman. Kelas CSS mengikuti rancangan original
+// (original/kopi-parang-keuangan-artifact.html) — lihat src/index.css.
 import { ReactNode } from "react";
-import { AlertTriangle, Loader2, Lock } from "lucide-react";
-import type { DayStatus } from "../types";
+import { Loader2, Lock, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { BULAN } from "../utils/format";
+import type { DayStatus, Role } from "../types";
 
+export const ROLE_LABEL: Record<Role, string> = { OWNER: "Owner", ADMIN: "Admin keuangan", KASIR: "Kasir" };
+
+/** Header halaman: judul (Literata) + sub, lalu chip tutup buku, pengguna yang masuk, dan tombol keluar. */
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+  const { user, logout } = useAuth();
   return (
-    <header className="flex flex-wrap items-end justify-between gap-3 mb-5">
+    <header className="top">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-parang-text">{title}</h1>
-        {subtitle && <p className="text-sm text-parang-subtle mt-1">{subtitle}</p>}
+        <h1>{title}</h1>
+        {subtitle && <div className="sub">{subtitle}</div>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      <div className="top-right">
+        {actions}
+        {user && (
+          <>
+            <span className="chip">Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
+            <span className="seg-label">Masuk sebagai</span>
+            <span className="who">
+              {user.name} <small>· {ROLE_LABEL[user.role]}</small>
+            </span>
+            <button className="btn ghost sm" onClick={logout}>
+              <LogOut /> Keluar
+            </button>
+          </>
+        )}
+      </div>
     </header>
   );
 }
 
-export function Panel({ title, hint, children, className = "" }: { title?: string; hint?: ReactNode; children: ReactNode; className?: string }) {
+export function Panel({ title, hint, children, className = "", id }: { title?: ReactNode; hint?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
-    <section className={`bg-white rounded-xl border border-parang-divider p-4 md:p-5 ${className}`}>
-      {title && <h2 className="text-base font-semibold text-parang-text">{title}</h2>}
-      {hint && <p className="text-xs text-parang-subtle mt-1 mb-3">{hint}</p>}
-      {!hint && title && <div className="mb-3" />}
+    <section className={`panel ${className}`} id={id}>
+      {title && <h2>{title}</h2>}
+      {hint && <p className="hint">{hint}</p>}
       {children}
     </section>
   );
@@ -28,18 +48,18 @@ export function Panel({ title, hint, children, className = "" }: { title?: strin
 
 export function Loading({ label = "Memuat…" }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-parang-subtle py-10 justify-center">
-      <Loader2 className="w-4 h-4 animate-spin" /> {label}
+    <div className="loading">
+      <Loader2 /> {label}
     </div>
   );
 }
 
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg bg-accent-dangerBg text-accent-danger px-4 py-3 text-sm">
-      <AlertTriangle className="w-4 h-4" /> <span className="flex-1">{message}</span>
+    <div role="alert" className="errbox">
+      <span>{message}</span>
       {onRetry && (
-        <button className="underline font-medium" onClick={onRetry}>
+        <button className="btn ghost sm" onClick={onRetry}>
           Coba lagi
         </button>
       )}
@@ -49,49 +69,38 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
 
 export function LockNote({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg bg-accent-warningBg text-accent-warning px-3 py-2 text-sm mb-3">
-      <Lock className="w-4 h-4 mt-0.5 shrink-0" /> <span>{children}</span>
+    <div className="lock" style={{ marginBottom: 12 }}>
+      <Lock /> <span>{children}</span>
     </div>
   );
 }
 
-export const statusTone = (s: DayStatus) =>
-  s === "OK" ? "ok" : s === "Cek selisih tunai" ? "bad" : s ? "wait" : "none";
+/** Kelas status hari: ok (hijau), bad (merah), wait (kuning), "" (kosong). Sama dengan stClass di prototipe. */
+export const statusTone = (s: DayStatus) => (s === "OK" ? "ok" : s === "Cek selisih tunai" ? "bad" : s ? "wait" : "");
 
-const PILL: Record<string, string> = {
-  ok: "bg-accent-successBg text-accent-success",
-  bad: "bg-accent-dangerBg text-accent-danger",
-  wait: "bg-accent-warningBg text-accent-warning",
-  none: "bg-gray-100 text-parang-subtle",
-  info: "bg-info-container text-accent-primaryDeep",
-};
-
-export function Pill({ tone = "none", children }: { tone?: keyof typeof PILL | string; children: ReactNode }) {
-  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${PILL[tone] ?? PILL.none}`}>{children}</span>;
+/** Pill: ok | wait | bad | auto (nila) | adj (soga) | tag (abu). */
+export function Pill({ tone = "tag", children }: { tone?: string; children: ReactNode }) {
+  return <span className={`pill ${tone || "tag"}`}>{children}</span>;
 }
 
 export function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "pos" | "neg" }) {
   return (
-    <div className="bg-white rounded-xl border border-parang-divider p-4">
-      <div className="text-xs text-parang-subtle">{label}</div>
-      <div className={`text-lg md:text-xl font-bold tnum mt-1 ${tone === "neg" ? "text-accent-danger" : tone === "pos" ? "text-accent-success" : "text-parang-text"}`}>
-        {value}
-      </div>
-      {sub && <div className="text-xs text-parang-subtle mt-1">{sub}</div>}
+    <div className="kpi">
+      <span className="l">{label}</span>
+      <span className={`v ${tone ?? ""}`}>{value}</span>
+      {sub && <span className="s">{sub}</span>}
     </div>
   );
 }
 
 export function CheckList({ checks }: { checks: { label: string; ok: boolean; diff?: number }[] }) {
   return (
-    <ul className="space-y-2">
+    <ul className="checks">
       {checks.map((c) => (
-        <li key={c.label} className="flex items-center gap-2 text-sm">
-          <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold ${c.ok ? "bg-accent-successBg text-accent-success" : "bg-accent-dangerBg text-accent-danger"}`}>
-            {c.ok ? "✓" : "!"}
-          </span>
+        <li key={c.label}>
+          <span className={`dot ${c.ok ? "ok" : "bad"}`}>{c.ok ? "✓" : "!"}</span>
           {c.label}
-          {!c.ok && c.diff !== undefined && <span className="text-accent-danger tnum">selisih {c.diff.toLocaleString("id-ID")}</span>}
+          {!c.ok && c.diff !== undefined && <span className="neg"> selisih {c.diff.toLocaleString("id-ID")}</span>}
         </li>
       ))}
     </ul>
@@ -100,9 +109,21 @@ export function CheckList({ checks }: { checks: { label: string; ok: boolean; di
 
 export function Field({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <label className={`block text-xs font-medium text-parang-neutral ${className}`}>
-      <span className="block mb-1">{label}</span>
+    <label className={`fld ${className}`}>
+      {label}
       {children}
     </label>
+  );
+}
+
+/** Daftar baris "label — nilai" berlatar sunk (kelas .calc di rancangan original). */
+export function CalcList({ rows }: { rows: { label: string; value: string; big?: boolean; cls?: string }[] }) {
+  return (
+    <div className="calc">
+      {rows.map((r) => [
+        <span key={`${r.label}-l`} className={r.big ? "big" : ""}>{r.label}</span>,
+        <span key={`${r.label}-v`} className={`${r.big ? "big" : ""} ${r.cls ?? ""}`}>{r.value}</span>,
+      ])}
+    </div>
   );
 }

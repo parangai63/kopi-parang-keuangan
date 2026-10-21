@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
 import prisma from "../prismaClient";
@@ -26,10 +27,16 @@ declare global {
   }
 }
 
+// Di development tidak perlu diset: dibuat acak tiap server start (sesi login hilang saat restart).
+// Di production WAJIB diset, karena server bisa berjalan di beberapa instance (mis. Vercel).
+let devSecret: string | undefined;
 function secret(): string {
   const s = process.env.KPK_SESSION_SECRET;
-  if (!s || s.length < 16) throw new Error("KPK_SESSION_SECRET belum diset (min. 16 karakter).");
-  return s;
+  if (s && s.length >= 16) return s;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("KPK_SESSION_SECRET wajib diset di production (min. 16 karakter).");
+  }
+  return (devSecret ??= randomBytes(32).toString("hex"));
 }
 
 export function issueSession(res: Response, user: SessionUser) {

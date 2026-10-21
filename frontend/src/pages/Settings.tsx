@@ -45,21 +45,20 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Akun & pengaturan" subtitle={canEdit ? "Owner dapat mengubah." : "Hanya owner yang dapat mengubah; admin melihat."} />
-      <div className="space-y-4">
+      <div className="grid">
         {settings.loading || !s ? (
           settings.error ? <ErrorBox message={settings.error} onRetry={settings.reload} /> : <Loading />
         ) : (
           <Panel title="Pengaturan" hint={`Tahun buku ${s.fiscalYear} · tutup buku s.d. ${s.closedMonth ? BULAN[s.closedMonth - 1] : "–"} (diubah lewat wizard Tutup Buku).`}>
-            <form onSubmit={save}>
-              <fieldset disabled={!canEdit} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <Field label="Nama usaha"><input className="input" value={s.businessName} onChange={(e) => setS({ ...s, businessName: e.target.value })} /></Field>
+            <form className="f" onSubmit={save}>
+              <fieldset disabled={!canEdit}>
+                <Field label="Nama usaha"><input value={s.businessName} onChange={(e) => setS({ ...s, businessName: e.target.value })} /></Field>
                 <Field label="Target omzet bulanan"><MoneyInput value={s.revenueTarget} disabled={!canEdit} onChange={(v) => setS({ ...s, revenueTarget: v ?? 0 })} /></Field>
                 <Field label="Batas selisih tunai per hari"><MoneyInput value={s.cashDiffThreshold} disabled={!canEdit} onChange={(v) => setS({ ...s, cashDiffThreshold: v ?? 0 })} /></Field>
-                <div />
                 {PCT_FIELDS.map(([k, label]) => (
                   <Field key={k} label={`${label} (%)`}>
                     <input
-                      className="input tnum text-right"
+                      className="money"
                       type="number"
                       step="0.1"
                       min={0}
@@ -69,31 +68,33 @@ export default function SettingsPage() {
                     />
                   </Field>
                 ))}
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.priceIncludesTax} onChange={(e) => setS({ ...s, priceIncludesTax: e.target.checked })} /> Harga menu sudah termasuk PBJT</label>
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.accruePbjt} onChange={(e) => setS({ ...s, accruePbjt: e.target.checked })} /> Akui estimasi PBJT kurang bayar</label>
+                <div className="checkrow">
+                  <label className="check"><input type="checkbox" checked={s.priceIncludesTax} onChange={(e) => setS({ ...s, priceIncludesTax: e.target.checked })} /> Harga menu sudah termasuk PBJT</label>
+                  <label className="check"><input type="checkbox" checked={s.accruePbjt} onChange={(e) => setS({ ...s, accruePbjt: e.target.checked })} /> Akui estimasi PBJT kurang bayar</label>
+                </div>
               </fieldset>
-              {canEdit && <button className="btn mt-4">Simpan pengaturan</button>}
+              {canEdit && <div className="btns"><button className="btn" type="submit">Simpan pengaturan</button></div>}
             </form>
           </Panel>
         )}
 
         <Panel title="Daftar akun" hint="Akun yang sudah dipakai tidak bisa dihapus, hanya dinonaktifkan. Saldo awal Ekuitas Kopi Parang dihitung otomatis.">
           {accounts.loading ? <Loading /> : accounts.error || !accounts.data ? <ErrorBox message={accounts.error ?? ""} onRetry={accounts.reload} /> : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-parang-subtle text-left">
-                  <tr><th className="py-2 pr-2">Kode</th><th className="pr-2">Nama akun</th><th className="pr-2">Kelompok</th><th className="pr-2">Normal</th><th className="pr-2">Kategori kas</th><th className="pr-2">Baris AK</th><th className="text-right pr-2">Saldo awal 1 Jan</th><th /></tr>
+            <div className="tw">
+              <table className="t">
+                <thead>
+                  <tr><th>Kode</th><th>Nama akun</th><th>Kelompok</th><th>Normal</th><th>Kategori kas</th><th>Baris arus kas</th><th className="r">Saldo awal 1 Jan</th><th /></tr>
                 </thead>
                 <tbody>
                   {accounts.data.map((a) => (
-                    <tr key={a.id} className="border-t border-parang-divider/60">
-                      <td className="py-1.5 pr-2 font-mono text-xs">{a.code}</td>
-                      <td className="pr-2">{a.name}</td>
-                      <td className="pr-2 text-xs">{a.group}</td>
-                      <td className="pr-2">{a.normalSide}</td>
-                      <td className="pr-2 text-xs">{a.cashCategory}</td>
-                      <td className="pr-2 text-xs">{a.cashFlowLine ?? "—"}</td>
-                      <td className="text-right pr-2 tnum">{a.code === "3101" ? <span className="text-parang-subtle">otomatis</span> : num(a.openingBalance)}</td>
+                    <tr key={a.id}>
+                      <td className="mono">{a.code}</td>
+                      <td className="acc">{a.name}</td>
+                      <td>{a.group}</td>
+                      <td>{a.normalSide}</td>
+                      <td>{a.cashCategory}</td>
+                      <td>{a.cashFlowLine ?? "—"}</td>
+                      <td className="r">{a.code === "3101" ? <span className="note">otomatis</span> : num(a.openingBalance)}</td>
                       <td>{!a.isActive && <Pill>nonaktif</Pill>}</td>
                     </tr>
                   ))}

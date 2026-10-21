@@ -15,42 +15,35 @@ export interface ReportRow {
   text?: string[];
 }
 
-const ROW_CLS: Record<RowStyle, string> = {
-  h: "font-semibold text-parang-text bg-parang-bg",
-  ind: "",
-  sum: "font-semibold border-t border-parang-outline",
-  grand: "font-bold border-t-2 border-parang-text bg-info-container/40",
-  ratio: "text-xs text-parang-subtle italic",
-  plain: "",
-};
-
 const fmt = (v: number | null | undefined, f: ReportRow["format"]) => (v == null ? "" : f === "pct" ? pct(v) : acct(v));
 
+/** Tabel laporan dengan kelas .t.rep rancangan original: tr.h (judul kelompok), td.ind (menjorok),
+ * tr.sum (subtotal), tr.grand (total), tr.ratio (rasio; td.over bila melewati batas). */
 export function ReportTable({ columns, rows, firstHeader = "Keterangan" }: { columns: string[]; rows: ReportRow[]; firstHeader?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-parang-divider overflow-x-auto">
-      <table className="w-full text-sm tnum">
-        <thead className="text-xs text-parang-subtle bg-parang-bg">
+    <div className="tw">
+      <table className="t rep">
+        <thead>
           <tr>
-            <th className="text-left px-3 py-2 sticky left-0 bg-parang-bg min-w-[220px]">{firstHeader}</th>
-            {columns.map((c) => <th key={c} className="text-right px-3 whitespace-nowrap">{c}</th>)}
+            <th>{firstHeader}</th>
+            {columns.map((c) => <th key={c} className="r">{c}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => {
             const style = r.style ?? "plain";
             return (
-              <tr key={i} className={`${ROW_CLS[style]} ${style !== "h" ? "border-t border-parang-divider/60" : ""}`}>
-                <td className={`px-3 py-1.5 sticky left-0 bg-inherit ${style === "ind" || style === "ratio" ? "pl-7" : ""}`} style={{ backgroundColor: "inherit" }}>
+              <tr key={i} className={style === "plain" || style === "ind" ? "" : style}>
+                <td className={style === "ind" || style === "ratio" ? "ind" : ""}>
                   {r.label}
-                  {r.limit != null && <span className="text-parang-subtle not-italic"> (batas {pct(r.limit, 0)})</span>}
+                  {r.limit != null && <span className="note"> (batas {pct(r.limit, 0)})</span>}
                 </td>
                 {columns.map((_, j) => {
                   const v = r.values?.[j];
                   const over = r.limit != null && v != null && v > r.limit;
                   return (
-                    <td key={j} className={`px-3 py-1.5 text-right whitespace-nowrap ${over ? "text-accent-danger font-semibold not-italic" : ""}`}>
-                      {r.text ? r.text[j] : fmt(v, r.format)}
+                    <td key={j} className={`r ${over ? "over" : ""}`}>
+                      {r.text ? r.text[j] : style === "h" ? "" : fmt(v, r.format)}
                     </td>
                   );
                 })}

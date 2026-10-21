@@ -14,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "ts-node --transpile-only prisma/seed.ts",
-    "check:patokan": "ts-node --transpile-only scripts/check-patokan.ts"
+    "check:patokan": "ts-node --transpile-only scripts/check-patokan.ts",
+    "seed:legacy": "ts-node --transpile-only prisma/seed-legacy.ts"
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"

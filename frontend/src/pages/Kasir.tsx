@@ -3,7 +3,7 @@ import { dailyApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { useToast } from "../context/ToastContext";
 import { dayOfWeek, HARI, num, tgl } from "../utils/format";
-import { ErrorBox, Field, Loading, PageHeader, Panel, Pill, statusTone } from "../components/ui";
+import { ErrorBox, Field, Loading, LockNote, PageHeader, Panel } from "../components/ui";
 import MoneyInput from "../components/MoneyInput";
 import BonEditor, { BonRow, bonsToPayload } from "../components/BonEditor";
 import type { DailyDay } from "../types";
@@ -18,7 +18,7 @@ const TODAY_FIELDS = [
 ] as const;
 type TodayField = (typeof TODAY_FIELDS)[number][0];
 
-/** Tampilan kasir di HP (layar 360 px): angka tutup kasir hari ini + setoran H+1. */
+/** Tampilan kasir di HP (layar 360 px): angka tutup kasir hari ini + setoran H+1 (vKasir di rancangan original). */
 export default function KasirPage() {
   const toast = useToast();
   const { data, loading, error, reload } = useApi(() => dailyApi.kasir(), []);
@@ -34,8 +34,8 @@ export default function KasirPage() {
     setBons(t.bons.map((b) => ({ partyId: b.partyId, amount: b.amount })));
   }, [data]);
 
-  if (loading) return <Loading />;
-  if (error || !data) return <ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} />;
+  if (loading) return <><PageHeader title="Omzet hari ini" /><Loading /></>;
+  if (error || !data) return <><PageHeader title="Omzet hari ini" /><ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} /></>;
   const t = data.today;
   const locked = Boolean(t.verifiedAt);
 
@@ -54,39 +54,40 @@ export default function KasirPage() {
   }
 
   return (
-    <div className="max-w-xl">
-      <PageHeader title="Omzet hari ini" subtitle={`${HARI[dayOfWeek(t.date)]}, ${tgl(t.date)}`} />
-      <div className="space-y-4">
+    <>
+      <PageHeader title="Omzet hari ini" subtitle={`${HARI[dayOfWeek(t.date)]}, ${tgl(t.date)} · tampilan kasir di HP`} />
+      <div className="kasir">
         <Panel title="Angka tutup kasir Majoo" hint="Isi saat tutup toko, salin dari laporan tutup kasir di Majoo.">
-          {locked && <p className="text-sm text-accent-warning mb-3">Sudah diverifikasi admin — tidak bisa diubah lagi.</p>}
-          <form onSubmit={saveToday} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+          {locked && <LockNote>Sudah diverifikasi admin, tidak bisa diubah lagi.</LockNote>}
+          <form className="f" onSubmit={saveToday}>
+            <fieldset>
               {TODAY_FIELDS.map(([k, label]) => (
                 <Field key={k} label={label}>
                   <MoneyInput value={form[k]} disabled={locked} onChange={(v) => setForm((f) => ({ ...f, [k]: v }))} />
                 </Field>
               ))}
-            </div>
-            <Field label="Bon karyawan">
+            </fieldset>
+            <fieldset>
+              <legend className="wide">Bon karyawan</legend>
               <BonEditor rows={bons} onChange={setBons} staff={staff.data ?? []} disabled={locked} />
-            </Field>
-            {!locked && <button className="btn w-full" disabled={busy}>{busy ? "Menyimpan…" : "Simpan omzet hari ini"}</button>}
+            </fieldset>
+            {!locked && (
+              <div className="btns">
+                <button className="btn" type="submit" disabled={busy}>{busy ? "Menyimpan…" : "Simpan omzet hari ini"}</button>
+              </div>
+            )}
           </form>
         </Panel>
 
-        <Panel title="Setoran tunai yang belum diisi" hint="Isi uang tunai yang benar-benar disetor per shift (H+1). Settlement EDC diisi admin.">
+        <Panel title="Setoran tunai yang belum diisi" hint="Isi jumlah uang tunai yang benar-benar disetor per shift (H+1). Settlement EDC diisi admin.">
           {data.pendingDeposits.length ? (
-            <div className="space-y-3">
-              {data.pendingDeposits.map((d) => (
-                <DepositRow key={d.date} day={d} onSaved={reload} />
-              ))}
-            </div>
+            data.pendingDeposits.map((d) => <DepositRow key={d.date} day={d} onSaved={reload} />)
           ) : (
-            <p className="text-sm text-parang-subtle">Semua setoran sudah diisi.</p>
+            <p className="note">Semua setoran sudah diisi.</p>
           )}
         </Panel>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -111,16 +112,14 @@ function DepositRow({ day, onSaved }: { day: DailyDay; onSaved: () => void }) {
   }
 
   return (
-    <form onSubmit={save} className="border border-parang-divider rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
-        <b className="text-sm">{tgl(day.date)}</b>
-        <span className="text-xs text-parang-subtle">POS tunai {num(day.cashPos)} <Pill tone={statusTone(day.calc.status)}>{day.calc.status}</Pill></span>
+    <form className="setor-row" onSubmit={save}>
+      <div className="dl">
+        <b>{tgl(day.date)}</b>
+        <div className="note">POS tunai {num(day.cashPos)}</div>
       </div>
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-        <Field label="Shift 1"><MoneyInput value={s1} onChange={setS1} /></Field>
-        <Field label="Shift 2"><MoneyInput value={s2} onChange={setS2} /></Field>
-        <button className="btn" disabled={busy}>Simpan</button>
-      </div>
+      <Field label="Shift 1"><MoneyInput value={s1} onChange={setS1} /></Field>
+      <Field label="Shift 2"><MoneyInput value={s2} onChange={setS2} /></Field>
+      <button className="btn" type="submit" disabled={busy}>Simpan</button>
     </form>
   );
 }

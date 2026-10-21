@@ -7,6 +7,8 @@ interface AuthState {
   checking: boolean;
   setUser: (u: Me | null) => void;
   logout: () => Promise<void>;
+  /** muat ulang profil (mis. setelah tutup buku, supaya chip "Tutup buku s.d." ikut berubah) */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -32,7 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  return <AuthContext.Provider value={{ user, checking, setUser, logout }}>{children}</AuthContext.Provider>;
+  const refresh = useCallback(async () => {
+    await authApi.me().then((r) => setUser(r.user)).catch(() => undefined);
+  }, []);
+
+  return <AuthContext.Provider value={{ user, checking, setUser, logout, refresh }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

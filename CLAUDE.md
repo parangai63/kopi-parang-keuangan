@@ -18,7 +18,7 @@ Sumber kebenaran: `docs/SPESIFIKASI.md`. Kalau kode dan spesifikasi berbeda, iku
 | --- | --- | --- |
 | Mencatat | Barang: stok, pembelian, repack, prep, resep, HPP per menu, absensi | Uang: omzet harian, setoran, jurnal, aset tetap, pajak, laporan |
 | Majoo | Import Excel "Laporan Penjualan Produk" | Tidak ada koneksi. Angka tutup kasir diketik kasir |
-| Login | PIN staf | Email + 2FA (owner/admin), PIN kasir sendiri |
+| Login | PIN staf | PIN 6 digit sendiri untuk semua peran (sementara; rencana spesifikasi: email + 2FA untuk owner/admin) |
 
 - **Jangan** menambah koneksi ke Majoo atau Parang-ops (API, import file, tabel/database bersama, SSO, sinkron PIN).
 - **Jangan** menambah modul stok/resep/absensi di sini. Laba/kas/utang hanya dihitung di sini.
@@ -30,7 +30,7 @@ Sumber kebenaran: `docs/SPESIFIKASI.md`. Kalau kode dan spesifikasi berbeda, iku
 backend/src/engine/engine.ts     mesin hitung murni (compute, calcDay, generalLedger) — port 1:1 prototype/engine.js
 backend/src/services/            business logic + Prisma + audit (ledgerService memuat DB → input mesin)
 backend/src/routes/index.ts      semua route + hak akses per peran
-backend/prisma/schema.prisma     model data; seed.ts impor prototype/data.js
+backend/prisma/schema.prisma     model data; seed.ts = data dummy, seed-legacy.ts = impor prototype/data.js (data asli)
 frontend/src/pages/              satu halaman per menu
 frontend/src/components/reports/ ReportTable + buildRows (tampilan & ekspor dari definisi yang sama)
 ```
@@ -62,7 +62,8 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 
 ## Belum dikerjakan (lihat fase di spesifikasi)
 
-- Skrip migrasi yang membaca file Excel v2 langsung (seed sementara memakai `prototype/data.js`).
+- Skrip migrasi yang membaca file Excel v2 langsung (`seed-legacy.ts` sementara memakai `prototype/data.js`).
+- Login email + kata sandi + 2FA untuk owner/admin (kodenya ada di `authService.loginWithPassword`, belum dipakai UI; sementara semua peran login PIN).
 - Rincian saldo awal per pihak (`opening_balance_details`) belum diisi seed.
 - Halaman Rekap Omzet, Analisis Event detail, Pajak (PBJT), CALK di frontend (endpoint
   `/api/reports/sales-recap`, `/events`, `/tax` sudah ada) — Fase 3.

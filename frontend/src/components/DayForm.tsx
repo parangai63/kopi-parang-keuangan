@@ -1,10 +1,9 @@
 import { FormEvent, useMemo, useState } from "react";
-import { CheckCheck } from "lucide-react";
 import { dailyApi } from "../api";
 import { useToast } from "../context/ToastContext";
 import { acct, BULAN, dayOfWeek, HARI, num, tgl } from "../utils/format";
 import { calcDay } from "../utils/calcDay";
-import { Field, LockNote, Pill, statusTone } from "./ui";
+import { CalcList, Field, LockNote, Pill, statusTone } from "./ui";
 import MoneyInput from "./MoneyInput";
 import BonEditor, { BonRow, bonsToPayload } from "./BonEditor";
 import type { DailyDay } from "../types";
@@ -64,63 +63,50 @@ export default function DayForm({ day, locked, threshold, staff, canVerify, onSa
     }
   }
 
-  const rows: [string, string, boolean?][] = [
-    ["Total tercatat", num(x.totalPos)],
-    ["Total realisasi", num(x.totalRealized)],
-    ["Selisih tunai", acct(x.cashDiff)],
-    ["Selisih tunai tak terjelaskan", acct(x.unexplainedCash), Math.abs(x.unexplainedCash) > threshold],
-    ["Selisih EDC", acct(x.edcDiff)],
-    ["Rata-rata / transaksi", x.avgTicket ? num(x.avgTicket) : "–"],
-  ];
-
   return (
-    <form onSubmit={save}>
-      <h2 className="font-semibold flex flex-wrap items-center gap-2">
-        {HARI[dayOfWeek(day.date)]}, {tgl(day.date)}
-        {x.status && <Pill tone={statusTone(x.status)}>{x.status}</Pill>}
-        {day.verifiedAt && <Pill tone="info">diverifikasi</Pill>}
+    <>
+      <h2>
+        {HARI[dayOfWeek(day.date)]}, {tgl(day.date)} {x.status && <Pill tone={statusTone(x.status)}>{x.status}</Pill>}{" "}
+        {day.verifiedAt && <Pill tone="auto">diverifikasi</Pill>}
       </h2>
-      <p className="text-xs text-parang-subtle mt-1 mb-3">Kosong berarti belum diisi. Setoran yang masih kosong tidak dihitung sebagai selisih.</p>
+      <p className="hint">Kosong berarti belum diisi. Setoran yang masih kosong tidak dihitung sebagai selisih.</p>
       {locked && <LockNote>Bulan {BULAN[month - 1]} sudah ditutup (atau tanggal belum terjadi). Owner harus membuka kembali bulan ini untuk mengubah data.</LockNote>}
-      <div className="space-y-4">
+      <form className="f" onSubmit={save}>
         {GROUPS.map(([legend, fields]) => (
           <fieldset key={legend}>
-            <legend className="text-xs font-semibold text-parang-text mb-2">{legend}</legend>
-            <div className="grid grid-cols-2 gap-3">
-              {fields.map(([k, label]) => (
-                <Field key={k} label={label}>
-                  <MoneyInput value={v[k]} disabled={locked} onChange={(val) => setV((s) => ({ ...s, [k]: val }))} />
-                </Field>
-              ))}
-            </div>
+            <legend className="wide">{legend}</legend>
+            {fields.map(([k, label]) => (
+              <Field key={k} label={label}>
+                <MoneyInput value={v[k]} disabled={locked} onChange={(val) => setV((s) => ({ ...s, [k]: val }))} />
+              </Field>
+            ))}
           </fieldset>
         ))}
         <fieldset>
-          <legend className="text-xs font-semibold text-parang-text mb-2">Bon karyawan (per orang)</legend>
+          <legend className="wide">Bon karyawan (per orang)</legend>
           <BonEditor rows={bons} onChange={setBons} staff={staff} disabled={locked} />
         </fieldset>
-      </div>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm bg-parang-bg rounded-lg p-3 mt-4 tnum">
-        {rows.map(([l, val, bad]) => (
-          <div key={l} className="contents">
-            <dt className="text-parang-neutral">{l}</dt>
-            <dd className={`text-right ${bad ? "text-accent-danger font-semibold" : ""}`}>{val}</dd>
+        <CalcList
+          rows={[
+            { label: "Total tercatat", value: num(x.totalPos) },
+            { label: "Total realisasi", value: num(x.totalRealized) },
+            { label: "Selisih tunai", value: acct(x.cashDiff) },
+            { label: "Selisih tunai tak terjelaskan", value: acct(x.unexplainedCash), cls: Math.abs(x.unexplainedCash) > threshold ? "neg" : "" },
+            { label: "Selisih EDC", value: acct(x.edcDiff) },
+            { label: "Omzet bersih", value: num(x.netRevenue), big: true },
+            { label: "Rata-rata / transaksi", value: x.avgTicket ? num(x.avgTicket) : "–" },
+          ]}
+        />
+        {!locked && (
+          <div className="btns">
+            <button className="btn" type="submit" disabled={busy}>{busy ? "Menyimpan…" : "Simpan"}</button>
+            {canVerify && day.calc.totalPos > 0 && !day.verifiedAt && (
+              <button type="button" className="btn ghost" onClick={verify}>Verifikasi realisasi</button>
+            )}
+            <button type="button" className="btn ghost" onClick={onClose}>Batal</button>
           </div>
-        ))}
-        <dt className="font-bold">Omzet bersih</dt>
-        <dd className="text-right font-bold">{num(x.netRevenue)}</dd>
-      </dl>
-      {!locked && (
-        <div className="flex flex-wrap gap-2 mt-4">
-          <button className="btn" disabled={busy}>{busy ? "Menyimpan…" : "Simpan"}</button>
-          {canVerify && day.calc.totalPos > 0 && !day.verifiedAt && (
-            <button type="button" className="btn-ghost" onClick={verify}>
-              <CheckCheck className="w-4 h-4" /> Verifikasi realisasi
-            </button>
-          )}
-          <button type="button" className="btn-ghost" onClick={onClose}>Batal</button>
-        </div>
-      )}
-    </form>
+        )}
+      </form>
+    </>
   );
 }

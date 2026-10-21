@@ -22,7 +22,7 @@ Tiga angka bulanan dari Parang-ops diketik manual saat tutup buku.
 | `frontend/` | UI React + Tailwind |
 | `.agents/` | Pedoman untuk agen AI: business logic, tech stack backend & frontend |
 | `docs/SPESIFIKASI.md` | Spesifikasi lengkap (sumber kebenaran) |
-| `prototype/` | Prototipe HTML lama + `data.js` (data asli Jan – 11 Okt 2026, dipakai seed) |
+| `prototype/` | Prototipe HTML lama + `data.js` (data asli Jan – 11 Okt 2026, dipakai `seed:legacy`) |
 | `scripts/check-patokan.js` | Uji angka patokan untuk mesin prototipe (`prototype/engine.js`) |
 | `original/` | File artifact asli satu halaman, untuk referensi |
 
@@ -33,10 +33,10 @@ Butuh Node.js 20+ dan PostgreSQL. Buat database & user **khusus** aplikasi ini (
 ```bash
 # 1. Backend — http://localhost:4100
 cd backend
-cp .env.example .env          # isi DATABASE_URL, KPK_SESSION_SECRET, SEED_OWNER_*
+cp .env.example .env          # cukup isi DATABASE_URL (variabel lain opsional)
 npm install
 npx prisma migrate deploy     # buat tabel
-npm run seed                  # impor data asli Excel v2 + akun owner & kasir dari .env
+npm run seed                  # isi DATA DUMMY + 3 akun (owner, admin, kasir)
 npm run dev
 
 # 2. Frontend — http://localhost:5174 (proxy /api → 4100)
@@ -45,8 +45,22 @@ npm install
 npm run dev
 ```
 
-Masuk sebagai owner dengan `SEED_OWNER_EMAIL` / `SEED_OWNER_PASSWORD`, atau sebagai kasir dengan
-`SEED_KASIR_PIN`. Aktifkan verifikasi 2 langkah di menu **Pengguna & Riwayat**.
+### Login & data dummy
+
+Login sementara memakai **PIN 6 digit** untuk semua peran (pilih nama, lalu PIN). `npm run seed` membuat data
+dummy (fiktif, Jan s.d. kemarin, bulan sebelum bulan berjalan sudah ditutup) dan 3 akun:
+
+| Nama | Peran | PIN |
+| --- | --- | --- |
+| Owner | Owner | 111111 |
+| Admin Keuangan | Admin | 222222 |
+| Kasir | Kasir | 333333 |
+
+PIN ini hanya untuk mencoba aplikasi. **Ganti di menu Pengguna & Riwayat sebelum dipakai sungguhan.**
+Isi ulang dari awal (menghapus SEMUA data): `SEED_RESET=1 npm run seed`.
+
+Untuk memakai data keuangan asli dari Excel v2, jalankan `npm run seed:legacy` (PIN dibuat acak dan ditampilkan sekali)
+— hanya di database yang aman untuk data asli.
 
 Port 4100/5174 sengaja berbeda dari Parang-ops (4000/5173) supaya keduanya bisa jalan bersamaan.
 

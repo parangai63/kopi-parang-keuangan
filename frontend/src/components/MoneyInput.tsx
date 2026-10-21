@@ -21,7 +21,7 @@ export default function MoneyInput({ value, onChange, disabled, placeholder, id 
   return (
     <input
       id={id}
-      className="input tnum text-right"
+      className="money"
       inputMode="numeric"
       autoComplete="off"
       disabled={disabled}

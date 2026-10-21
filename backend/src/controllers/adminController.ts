@@ -24,8 +24,8 @@ export async function postLogin(req: Request, res: Response) {
   issueSession(res, r.user);
   res.json({ user: await auth.getMe(r.user.id) });
 }
-export async function getKasirList(_req: Request, res: Response) {
-  res.json(await auth.listKasir());
+export async function getLoginUsers(_req: Request, res: Response) {
+  res.json(await auth.listLoginUsers());
 }
 export async function postPinLogin(req: Request, res: Response) {
   const { userId, pin } = req.body ?? {};

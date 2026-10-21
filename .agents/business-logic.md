@@ -103,5 +103,5 @@ ekuitas neraca) harus selalu hijau.
 | Laporan & dashboard | lihat, ekspor | lihat, ekspor | — |
 | Pengguna & audit log | kelola | — | — |
 
-Login: owner/admin email + kata sandi + 2FA (TOTP); kasir pilih nama + PIN 6 digit (dikunci 15 menit
+Login **sementara**: semua peran (owner, admin, kasir) pilih nama + PIN 6 digit (dikunci 15 menit
 setelah 5 kali salah). Sesi berakhir setelah 12 jam tidak aktif (kasir 8 jam).

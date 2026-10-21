@@ -11,7 +11,8 @@ Agen AI yang ditugaskan di bagian Backend WAJIB mematuhi spesifikasi ini.
 *   **Database**: PostgreSQL — database sendiri (mis. `kopiparang_keuangan`) dengan user database sendiri.
     User ini tidak boleh punya akses ke database Parang-ops, dan sebaliknya.
 *   **Development Server**: `ts-node-dev` (`npm run dev`, port **4100**).
-*   **Auth**: `jsonwebtoken` (cookie httpOnly `kpk_session`), `bcryptjs` (password & PIN), `otplib` (2FA TOTP).
+*   **Auth**: sementara semua peran login PIN 6 digit. `jsonwebtoken` (cookie httpOnly `kpk_session`),
+    `bcryptjs` (PIN & password), `otplib` (2FA TOTP — kode login email + 2FA ada tapi belum dipakai UI).
 *   **Deploy**: Vercel (`api/index.ts` + `vercel.json`), sama seperti Parang-ops, di subdomain sendiri.
 
 ## 2. Struktur Arsitektur & Folder
@@ -22,7 +23,8 @@ backend/
   prisma/
     schema.prisma         model data (sumber: docs/SPESIFIKASI.md bagian Model data)
     migrations/           migrasi SQL — jangan edit migrasi yang sudah di-deploy
-    seed.ts               impor data asli Excel v2 (via prototype/data.js) + akun awal
+    seed.ts               data DUMMY + 3 akun PIN (diuji mesin sebelum ditulis); seed-legacy.ts = data asli
+    seedShared.ts         wipe + pembuatan akun, dipakai kedua seed
     legacyData.ts         pembaca prototype/data.js → bentuk input mesin
   scripts/check-patokan.ts  uji angka patokan Excel v2 terhadap mesin TS
   src/
@@ -71,12 +73,21 @@ backend/
     `npx prisma migrate deploy`.
 *   **Jangan dump hasil query Prisma langsung ke response JSON**: BigInt tidak bisa diserialisasi dan
     relasi bocor. Selalu format dulu (lihat `serialize*` di service).
-*   **Seed** (`npm run seed`) menolak berjalan jika database sudah berisi; `SEED_RESET=1` hanya untuk
-    dev/staging. Data asli tidak dipakai di laptop pengembang tanpa izin owner.
+*   **Seed**: `npm run seed` (dummy) dan `npm run seed:legacy` (data asli) menolak berjalan jika database sudah
+    berisi; `SEED_RESET=1` menghapus semua data dan hanya untuk dev/staging. Data asli tidak dipakai di laptop
+    pengembang tanpa izin owner. Seed dummy menguji datanya dengan mesin hitung sebelum menulis ke database.
+*   **RLS**: migrasi `enable_rls` mengaktifkan Row Level Security (tanpa policy) di semua tabel, supaya data
+    tidak terbuka lewat API publik Supabase. Backend harus memakai role pemilik tabel (`postgres`);
+    role lain tanpa BYPASSRLS akan melihat data kosong.
+*   **Supabase**: pakai Session pooler (port 5432) di `DATABASE_URL` untuk app & migrasi. Transaction pooler
+    (6543) butuh `?pgbouncer=true&connection_limit=1` dan tidak bisa untuk `migrate`.
 
 ## 5. Keamanan & Lingkungan
 *   Jangan commit `.env` atau kredensial. Repo berisi data keuangan asli → repository **private**.
-*   Variabel environment memakai prefix `KPK_` (lihat `.env.example`). `KPK_SESSION_SECRET` beda dengan
-    secret Parang-ops.
-*   CORS hanya mengizinkan origin di `KPK_CORS_ORIGIN` (cookie sesi memakai `credentials`).
+*   `.env` dibuat minimal: development cukup `DATABASE_URL`. Variabel lain opsional dan punya nilai bawaan
+    (lihat `.env.example`). Jangan menambah variabel environment baru tanpa nilai bawaan yang aman.
+*   Production wajib mengisi `KPK_SESSION_SECRET` (beda dengan secret Parang-ops); di development dibuat
+    acak otomatis.
+*   CORS hanya mengizinkan origin di `KPK_CORS_ORIGIN` (bawaan `http://localhost:5174`; cookie sesi memakai
+    `credentials`).
 *   Minimal dua lingkungan: staging dan produksi. Backup database harian, simpan ≥ 30 hari.

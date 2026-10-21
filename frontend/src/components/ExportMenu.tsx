@@ -32,17 +32,17 @@ export default function ExportMenu({ build, disabled }: { build: () => ExportSpe
   };
 
   return (
-    <div className="relative" ref={ref}>
-      <button type="button" className="btn-ghost" disabled={disabled || busy} onClick={() => setOpen((v) => !v)}>
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Ekspor
+    <div className="export" ref={ref}>
+      <button type="button" className="btn ghost" disabled={disabled || busy} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        {busy ? <Loader2 className="animate-spin" /> : <Download />} Ekspor
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg border border-parang-outline/40 shadow-lg py-1 z-20">
-          <button type="button" onClick={() => pick("xlsx")} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
-            <FileSpreadsheet className="w-4 h-4" /> Excel (.xlsx)
+        <div className="export-menu">
+          <button type="button" onClick={() => pick("xlsx")}>
+            <FileSpreadsheet /> Excel (.xlsx)
           </button>
-          <button type="button" onClick={() => pick("pdf")} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
-            <FileText className="w-4 h-4" /> PDF
+          <button type="button" onClick={() => pick("pdf")}>
+            <FileText /> PDF
           </button>
         </div>
       )}

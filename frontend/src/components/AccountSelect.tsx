@@ -16,7 +16,6 @@ export default function AccountSelect({
   return (
     <select
       id={id}
-      className="input"
       value={value}
       onChange={(e) => onChange(byName ? e.target.value : Number(e.target.value) || "")}
     >

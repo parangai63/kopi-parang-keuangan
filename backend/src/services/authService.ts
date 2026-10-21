@@ -7,6 +7,7 @@ import prisma from "../prismaClient";
 import { SessionUser } from "../middleware/auth";
 import { HttpError, badRequest, notFound } from "../utils/httpError";
 import { logAudit } from "./auditService";
+import { getActiveSettings } from "./settingsService";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -56,15 +57,17 @@ export async function loginWithPassword(email: string, password: string, totp?: 
   return { user: toSession(u), totpEnabled: u.totpEnabled };
 }
 
-/** Daftar kasir aktif untuk layar PIN (hanya id + nama). */
-export async function listKasir() {
-  const rows = await prisma.user.findMany({ where: { role: "KASIR", isActive: true }, orderBy: { name: "asc" } });
-  return rows.map((u) => ({ id: u.id, name: u.name }));
+/** Daftar pengguna aktif untuk layar PIN (hanya id, nama, peran) — pola sama dengan PIN gate Parang-ops. */
+export async function listLoginUsers() {
+  const rows = await prisma.user.findMany({ where: { isActive: true, pinHash: { not: null } }, orderBy: [{ role: "asc" }, { name: "asc" }] });
+  return rows.map((u) => ({ id: u.id, name: u.name, role: u.role }));
 }
 
+/** Login sementara untuk semua peran (owner, admin, kasir) memakai PIN 6 digit.
+ * Login email + kata sandi + 2FA (loginWithPassword) tetap ada di kode untuk diaktifkan kembali. */
 export async function loginWithPin(userId: number, pin: string) {
   const u = await prisma.user.findUnique({ where: { id: userId } });
-  if (!u || !u.isActive || u.role !== "KASIR" || !u.pinHash) throw new HttpError(401, "PIN salah.");
+  if (!u || !u.isActive || !u.pinHash) throw new HttpError(401, "PIN salah.");
   await assertNotLocked(u);
   if (!/^\d{6}$/.test(pin) || !(await bcrypt.compare(pin, u.pinHash))) {
     await registerFailure(u);
@@ -77,7 +80,9 @@ export async function loginWithPin(userId: number, pin: string) {
 export async function getMe(id: number) {
   const u = await prisma.user.findUnique({ where: { id } });
   if (!u) throw notFound("Pengguna tidak ditemukan.");
-  return { id: u.id, name: u.name, email: u.email, role: u.role, totpEnabled: u.totpEnabled };
+  // Tahun buku & bulan tutup buku ikut dikirim untuk chip "Tutup buku s.d." di header (semua peran).
+  const s = await getActiveSettings();
+  return { id: u.id, name: u.name, email: u.email, role: u.role, totpEnabled: u.totpEnabled, fiscalYear: s.fiscalYear, closedMonth: s.closedMonth };
 }
 
 /** Langkah 1 aktivasi 2FA: buat secret, tampilkan sebagai QR/otpauth URL di aplikasi authenticator. */
@@ -130,17 +135,21 @@ export async function saveUser(actor: SessionUser, id: number | null, i: UserInp
     if (id === actor.id && !i.isActive) throw badRequest("Tidak bisa menonaktifkan akun sendiri.");
     data.isActive = Boolean(i.isActive);
   }
-  if (role === "KASIR") {
-    if (i.pin !== undefined) {
-      if (!/^\d{6}$/.test(i.pin)) throw badRequest("PIN kasir harus 6 digit angka.");
-      data.pinHash = await bcrypt.hash(i.pin, 10);
-    } else if (!before?.pinHash) throw badRequest("PIN kasir wajib diisi.");
-  } else {
-    if (!email) throw badRequest("Email wajib untuk owner/admin.");
-    if (i.password !== undefined) {
-      if (i.password.length < 10) throw badRequest("Kata sandi minimal 10 karakter.");
-      data.passwordHash = await bcrypt.hash(i.password, 12);
-    } else if (!before?.passwordHash) throw badRequest("Kata sandi wajib diisi.");
+  // Sementara semua peran masuk dengan PIN 6 digit. Email & kata sandi opsional (untuk login 2FA nanti).
+  if (i.pin !== undefined) {
+    if (!/^\d{6}$/.test(i.pin)) throw badRequest("PIN harus 6 digit angka.");
+    data.pinHash = await bcrypt.hash(i.pin, 10);
+  } else if (!before?.pinHash) throw badRequest("PIN wajib diisi (6 digit angka).");
+  if (i.password !== undefined && i.password !== "") {
+    if (i.password.length < 10) throw badRequest("Kata sandi minimal 10 karakter.");
+    if (!email) throw badRequest("Isi email jika memakai kata sandi.");
+    data.passwordHash = await bcrypt.hash(i.password, 12);
+  }
+
+  // Selalu sisakan minimal satu owner aktif.
+  if (before?.role === "OWNER" && (role !== "OWNER" || data.isActive === false)) {
+    const others = await prisma.user.count({ where: { role: "OWNER", isActive: true, id: { not: before.id } } });
+    if (!others) throw badRequest("Harus ada minimal satu owner aktif.");
   }
 
   const row = id

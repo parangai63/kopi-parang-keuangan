@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { assetApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { useAuth } from "../context/AuthContext";
@@ -43,11 +43,12 @@ export default function AssetsPage() {
     }
   }
 
-  if (loading) return <Loading />;
-  if (error || !data) return <ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} />;
+  if (loading) return <><PageHeader title="Aset tetap" /><Loading /></>;
+  if (error || !data) return <><PageHeader title="Aset tetap" /><ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} /></>;
   const akumLabel = `Akum. s.d. ${BLN3[data.closedMonth - 1] ?? "–"}`;
   const okEquip = data.totals.cost === data.ledgerCheck.equipmentBalance;
   const okAkum = data.totals.accumulated === data.ledgerCheck.accumulatedBalance;
+  const isOwner = user?.role === "OWNER";
 
   return (
     <>
@@ -56,7 +57,7 @@ export default function AssetsPage() {
         subtitle={`${data.assets.length} aset · garis lurus, mulai bulan setelah perolehan`}
         actions={
           <>
-            {!form && <button className="btn" onClick={() => setForm({ name: "", acquiredOn: todayJakarta(), cost: null, usefulLifeYears: 4 })}><Plus className="w-4 h-4" /> Aset baru</button>}
+            {!form && <button className="btn" onClick={() => setForm({ name: "", acquiredOn: todayJakarta(), cost: null, usefulLifeYears: 4 })}>+ Aset baru</button>}
             <ExportMenu
               build={() => ({
                 filename: "aset-tetap", title: "Aset Tetap & Penyusutan", period: periodLabel(data.year, data.closedMonth),
@@ -77,52 +78,55 @@ export default function AssetsPage() {
       />
       {form && (
         <Panel title="Aset baru" hint="Untuk pembelian peralatan ≥ Rp1 juta. Tanggal perolehan harus di bulan yang belum ditutup." className="mb-4">
-          <form onSubmit={submit} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-            <Field label="Nama aset"><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-            <Field label="Tanggal perolehan"><input className="input" type="date" value={form.acquiredOn} onChange={(e) => setForm({ ...form, acquiredOn: e.target.value })} /></Field>
-            <Field label="Harga perolehan"><MoneyInput value={form.cost} onChange={(v) => setForm({ ...form, cost: v })} /></Field>
-            <Field label="Masa manfaat (tahun)">
-              <input className="input" type="number" min={1} max={50} value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: Number(e.target.value) })} />
-            </Field>
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
-              <button className="btn" disabled={busy}>Simpan</button>
-              <button type="button" className="btn-ghost" onClick={() => setForm(null)}>Batal</button>
+          <form className="f" onSubmit={submit}>
+            <fieldset>
+              <Field label="Nama aset"><input autoComplete="off" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+              <Field label="Tanggal perolehan"><input type="date" value={form.acquiredOn} onChange={(e) => setForm({ ...form, acquiredOn: e.target.value })} /></Field>
+              <Field label="Harga perolehan"><MoneyInput value={form.cost} onChange={(v) => setForm({ ...form, cost: v })} /></Field>
+              <Field label="Masa manfaat (tahun)">
+                <input type="number" min={1} max={50} value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: Number(e.target.value) })} />
+              </Field>
+            </fieldset>
+            <div className="btns">
+              <button className="btn" type="submit" disabled={busy}>Simpan</button>
+              <button type="button" className="btn ghost" onClick={() => setForm(null)}>Batal</button>
             </div>
           </form>
         </Panel>
       )}
-      <div className="bg-white rounded-xl border border-parang-divider overflow-x-auto">
-        <table className="w-full text-sm tnum">
-          <thead className="text-xs text-parang-subtle bg-parang-bg">
-            <tr className="text-right">
-              <th className="text-left px-3 py-2">Nama aset</th><th className="text-left px-3">Diperoleh</th><th className="px-3">Harga</th>
-              <th className="px-3">Masa</th><th className="text-left px-3">Mulai susut</th><th className="px-3">Per bulan</th>
-              <th className="px-3">{akumLabel}</th><th className="px-3">Nilai buku</th><th />
+      <div className="tw">
+        <table className="t rep">
+          <thead>
+            <tr>
+              <th>Nama aset</th><th>Diperoleh</th><th className="r">Harga</th><th className="r">Masa (thn)</th><th>Mulai susut</th>
+              <th className="r">Per bulan</th><th className="r">{akumLabel}</th><th className="r">Nilai buku</th>{isOwner && <th />}
             </tr>
           </thead>
           <tbody>
             {data.assets.map((a) => (
-              <tr key={a.id ?? a.name} className="border-t border-parang-divider/60 text-right">
-                <td className="text-left px-3 py-1.5 min-w-[220px]">{a.name}</td>
-                <td className="text-left px-3 whitespace-nowrap">{tgl(a.acquiredOn)}</td>
-                <td className="px-3">{num(a.cost)}</td><td className="px-3">{a.usefulLifeYears}</td>
-                <td className="text-left px-3 whitespace-nowrap">{tgl(a.depreciationStart)}</td>
-                <td className="px-3">{num(a.perMonth)}</td><td className="px-3">{num(a.accumulated)}</td><td className="px-3">{num(a.bookValue)}</td>
-                <td className="px-2">
-                  {user?.role === "OWNER" && a.id && Number(a.acquiredOn.slice(5, 7)) > data.closedMonth && (
-                    <button className="text-parang-subtle hover:text-accent-danger" onClick={() => voidAsset(a.id!, a.name)} title="Batalkan"><Trash2 className="w-4 h-4" /></button>
-                  )}
-                </td>
+              <tr key={a.id ?? a.name}>
+                <td>{a.name}</td>
+                <td className="acc">{tgl(a.acquiredOn)}</td>
+                <td className="r">{num(a.cost)}</td><td className="r">{a.usefulLifeYears}</td>
+                <td className="acc">{tgl(a.depreciationStart)}</td>
+                <td className="r">{num(a.perMonth)}</td><td className="r">{num(a.accumulated)}</td><td className="r">{num(a.bookValue)}</td>
+                {isOwner && (
+                  <td className="act">
+                    {a.id && Number(a.acquiredOn.slice(5, 7)) > data.closedMonth && (
+                      <button className="iconbtn" onClick={() => voidAsset(a.id!, a.name)} title="Batalkan" aria-label={`Batalkan ${a.name}`}><Trash2 /></button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
-            <tr className="border-t-2 border-parang-text font-bold text-right">
-              <td className="text-left px-3 py-2">Total</td><td /><td className="px-3">{num(data.totals.cost)}</td><td /><td /><td />
-              <td className="px-3">{num(data.totals.accumulated)}</td><td className="px-3">{num(data.totals.bookValue)}</td><td />
+            <tr className="grand">
+              <td>Total</td><td /><td className="r">{num(data.totals.cost)}</td><td /><td /><td />
+              <td className="r">{num(data.totals.accumulated)}</td><td className="r">{num(data.totals.bookValue)}</td>{isOwner && <td />}
             </tr>
           </tbody>
         </table>
       </div>
-      <p className={`text-xs mt-3 ${okEquip && okAkum ? "text-parang-subtle" : "text-accent-danger"}`}>
+      <p className={`note ${okEquip && okAkum ? "" : "neg"}`} style={{ marginTop: 10 }}>
         Cek ke buku besar: saldo Peralatan {num(data.ledgerCheck.equipmentBalance)} {okEquip ? "✓" : "≠ total harga"} · saldo Akumulasi Penyusutan{" "}
         {num(data.ledgerCheck.accumulatedBalance)} {okAkum ? "✓" : "≠ total akumulasi"}. Penyusutan per bulan masuk ke jurnal otomatis saat tutup buku.
       </p>

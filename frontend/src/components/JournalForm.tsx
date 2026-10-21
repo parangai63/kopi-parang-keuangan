@@ -45,10 +45,10 @@ export default function JournalForm({
 
   return (
     <Panel title="Transaksi baru" hint="Satu transaksi = satu akun debet dan satu akun kredit. Nomor bukti dibuat otomatis." className="mb-4">
-      <form onSubmit={submit}>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <form className="f" onSubmit={submit}>
+        <fieldset>
           <Field label="Tanggal">
-            <input className="input" type="date" value={v.date} onChange={(e) => set({ date: e.target.value })} />
+            <input type="date" value={v.date} onChange={(e) => set({ date: e.target.value })} />
           </Field>
           <Field label="Akun debet">
             <AccountSelect accounts={accounts} value={v.debitAccountId} blank="Pilih akun…" onChange={(x) => set({ debitAccountId: x as number })} />
@@ -59,29 +59,29 @@ export default function JournalForm({
           <Field label="Nominal (Rp)">
             <MoneyInput value={v.amount} onChange={(x) => set({ amount: x })} />
           </Field>
-          <Field label="Keterangan" className="sm:col-span-2">
-            <input className="input" value={v.description} onChange={(e) => set({ description: e.target.value })} placeholder="mis. Belanja susu fresh milk 2 karton" />
+          <Field label="Keterangan" className="wide">
+            <input autoComplete="off" value={v.description} onChange={(e) => set({ description: e.target.value })} placeholder="mis. Belanja susu fresh milk 2 karton" />
           </Field>
           <Field label="No. nota">
-            <input className="input" value={v.receiptNo} onChange={(e) => set({ receiptNo: e.target.value })} placeholder="sama dengan di Parang-ops" />
+            <input autoComplete="off" value={v.receiptNo} onChange={(e) => set({ receiptNo: e.target.value })} placeholder="sama dengan di Parang-ops" />
           </Field>
           <Field label="Tag event">
-            <select className="input" value={v.eventId} onChange={(e) => set({ eventId: Number(e.target.value) || "" })}>
+            <select value={v.eventId} onChange={(e) => set({ eventId: Number(e.target.value) || "" })}>
               <option value="">Tanpa event</option>
               {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
             </select>
           </Field>
           <Field label="Pihak (opsional)">
-            <select className="input" value={v.partyId} onChange={(e) => set({ partyId: Number(e.target.value) || "" })}>
+            <select value={v.partyId} onChange={(e) => set({ partyId: Number(e.target.value) || "" })}>
               <option value="">—</option>
               {parties.filter((p) => p.isActive).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </Field>
-        </div>
-        {err && <div role="alert" className="text-sm text-accent-danger mt-3">{err}</div>}
-        <div className="flex gap-2 mt-4">
-          <button className="btn" disabled={busy}>{busy ? "Menyimpan…" : "Simpan transaksi"}</button>
-          <button type="button" className="btn-ghost" onClick={onCancel}>Batal</button>
+        </fieldset>
+        {err && <div role="alert" className="err">{err}</div>}
+        <div className="btns">
+          <button className="btn" type="submit" disabled={busy}>{busy ? "Menyimpan…" : "Simpan transaksi"}</button>
+          <button type="button" className="btn ghost" onClick={onCancel}>Batal</button>
         </div>
       </form>
     </Panel>

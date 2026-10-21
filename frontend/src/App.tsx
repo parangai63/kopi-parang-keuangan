@@ -31,9 +31,9 @@ function AppContent() {
   if (!user) return <LoginPage />;
 
   return (
-    <div className="md:flex min-h-screen bg-parang-bg">
-      <Sidebar active={page} onNavigate={setPage} />
-      <main className="flex-1 min-w-0 px-4 py-5 md:px-8 md:py-7">
+    <div className="app">
+      <Sidebar active={page} onNavigate={(p) => { setPage(p); window.scrollTo(0, 0); }} />
+      <main>
         {(() => {
           switch (page) {
             case "kasir":

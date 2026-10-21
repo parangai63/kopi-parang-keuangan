@@ -1,15 +1,19 @@
 # Aturan Tech Stack & Pedoman Frontend (Frontend Guidelines)
 
-File ini mengatur standardisasi pengembangan Frontend Kopi Parang Keuangan. Stack dan design token-nya
-**sama dengan Parang-ops**, tetapi aplikasinya terpisah (repo, subdomain, sesi). Agen AI yang ditugaskan
+File ini mengatur standardisasi pengembangan Frontend Kopi Parang Keuangan. Stack-nya **sama dengan
+Parang-ops**, tetapi aplikasinya terpisah (repo, subdomain, sesi). **Tampilan mengikuti rancangan original**
+`original/kopi-parang-keuangan-artifact.html` (= `prototype/styles.css`), bukan design system Parang-ops
+(keputusan owner, 21 Okt 2026). Agen AI yang ditugaskan
 di bagian UI/UX WAJIB mematuhi spesifikasi ini.
 
 ## 1. Teknologi Utama
 *   **Framework**: React 18 dengan Vite sebagai *bundler* utama (dev di port **5174**, proxy `/api` → 4100).
 *   **Bahasa Pemrograman**: TypeScript (`strict`, wajib mendeklarasikan tipe/interface untuk *props* dan *state*).
     Tipe data API ada di `src/types/index.ts` — samakan dengan response backend.
-*   **Styling**: Tailwind CSS dan PostCSS. `tailwind.config.js` memakai token warna Parang (`parang.*`,
-    `accent.*`, `status.*`) dan font Plus Jakarta Sans, sama dengan Parang-ops.
+*   **Styling**: CSS rancangan original di `src/index.css` (token di `:root`, mode gelap otomatis) + Tailwind
+    untuk utility kecil. Aksen nila `--accent`, merek soga `--soga`, font Literata (judul) + IBM Plex Sans/Mono.
+    `tailwind.config.js` memetakan warna ke variabel CSS yang sama (`ink`, `muted`, `accent`, `soga`, `good`,
+    `warn`, `crit`, …) dan **preflight dimatikan**, jadi utility `border` butuh `border-solid`.
 *   **Iconography**: Lucide React.
 *   **Library Ekstra**: `xlsx` untuk ekspor Excel, `jspdf` + `jspdf-autotable` untuk ekspor PDF
     (dimuat lazily lewat `import()` di `ExportMenu`, supaya layar kasir di HP tetap ringan).
@@ -45,10 +49,14 @@ src/
 *   Jangan menambah tampilan, tombol, atau teks yang menyiratkan koneksi otomatis ke Parang-ops/Majoo.
     Angka Parang-ops selalu "diketik manual".
 
-## 4. Standar Styling (Tailwind CSS)
-*   **Jangan buat CSS custom**: gunakan *utility classes* Tailwind di `className`. Kelas komponen yang
-    boleh dipakai ulang hanya yang ada di `index.css` (`.input`, `.btn`, `.btn-ghost`, `.btn-danger`, `.tnum`).
-*   **Angka tabular**: kolom angka memakai `tnum` + rata kanan.
+## 4. Standar Styling
+*   **Pakai kelas rancangan original** dari `index.css`: `.top` (lewat `PageHeader`), `.panel`, `.kpis/.kpi`,
+    `.two`, `.grid`, `.tw` + `table.t` (`.rep` untuk laporan: `tr.h/.sum/.grand/.ratio`, `td.ind/.r/.acc/.ket`),
+    `.toolbar`, `form.f` + `fieldset` + `label.fld`, `.calc`, `.btn` / `.btn.ghost` / `.btn.danger`, `.pill`
+    (`ok/wait/bad/auto/adj/tag`), `.months`, `.sumstrip`, `.cal/.day`, `.steps/.step`, `.kasir`, `.setor-row`.
+    Kelas tambahan (di luar prototipe) ada di bagian bawah `index.css`. Jangan memasukkan design token Parang-ops.
+*   **Warna** selalu lewat variabel CSS (`var(--crit)`, `.neg`, `.pos`), jangan hex, supaya mode gelap tetap benar.
+*   **Angka tabular**: kolom angka memakai `td.r` (atau `input.money`) — sudah tabular + rata kanan.
 *   **Responsif**: Halaman **Omzet Harian (kasir)** dan **Dashboard** wajib nyaman di HP lebar **360 px**.
     Halaman laporan cukup nyaman di laptop/tablet; tabel lebar dibungkus `overflow-x-auto`.
 *   **Indikator Loading & Error**: setiap fetch WAJIB menampilkan `Loading` dan `ErrorBox` (dengan tombol

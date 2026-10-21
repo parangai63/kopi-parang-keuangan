@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { journalApi, masterApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { useAuth } from "../context/AuthContext";
@@ -21,6 +21,7 @@ async function fetchAllRows(f: Parameters<typeof journalApi.list>[0]) {
   }
 }
 
+/** Jurnal transaksi — susunan sama dengan vJurnal() di rancangan original. */
 export default function JournalPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -54,34 +55,11 @@ export default function JournalPage() {
 
   const d = list.data;
   const pages = d ? Math.ceil(d.total / PAGE_SIZE) : 1;
+  const isOwner = user?.role === "OWNER";
 
   return (
     <>
-      <PageHeader
-        title="Jurnal transaksi"
-        subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""}
-        actions={
-          <>
-            {!showForm && <button className="btn" onClick={() => setShowForm(true)}><Plus className="w-4 h-4" /> Transaksi baru</button>}
-            <ExportMenu
-              disabled={!d}
-              build={async () => ({
-                filename: "jurnal",
-                title: "Jurnal transaksi",
-                period: f.month ? BULAN[(f.month as number) - 1] : "Semua bulan",
-                columns: [
-                  { header: "No. bukti", key: "voucherNo" }, { header: "Tanggal", key: "date" },
-                  { header: "Debet", key: "debit" }, { header: "Kredit", key: "credit" },
-                  { header: "Nominal", key: "amount", numeric: true }, { header: "Keterangan", key: "description" },
-                  { header: "Event", key: "event" }, { header: "Pihak", key: "party" }, { header: "No. nota", key: "receiptNo" },
-                ],
-                // Seluruh hasil filter (semua halaman), bukan hanya halaman yang tampil.
-                rows: await fetchAllRows(f),
-              })}
-            />
-          </>
-        }
-      />
+      <PageHeader title="Jurnal transaksi" subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""} />
       {showForm && accounts.data && (
         <JournalForm
           accounts={accounts.data}
@@ -91,82 +69,99 @@ export default function JournalPage() {
           onSaved={(no) => { toast(`Tersimpan sebagai ${no}.`); setShowForm(false); list.reload(); }}
         />
       )}
-      <div className="flex flex-wrap gap-3 items-end mb-4">
-        <Field label="Cari" className="flex-1 min-w-[200px]">
-          <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="keterangan, no. bukti, pihak, nota" />
+      <div className="toolbar">
+        <Field label="Cari" className="q">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="keterangan, no. bukti, pihak, nota" />
         </Field>
         <Field label="Bulan">
-          <select className="input" value={f.month} onChange={(e) => setFilter({ month: Number(e.target.value) || "" })}>
+          <select value={f.month} onChange={(e) => setFilter({ month: Number(e.target.value) || "" })}>
             <option value="">Semua bulan</option>
             {BULAN.map((b, i) => <option key={b} value={i + 1}>{b}</option>)}
           </select>
         </Field>
-        <Field label="Akun" className="min-w-[220px]">
+        <Field label="Akun">
           <AccountSelect accounts={accounts.data ?? []} value={f.account} byName blank="Semua akun" onChange={(v) => setFilter({ account: String(v) })} />
         </Field>
         <Field label="Event">
-          <select className="input" value={f.event} onChange={(e) => setFilter({ event: e.target.value })}>
+          <select value={f.event} onChange={(e) => setFilter({ event: e.target.value })}>
             <option value="">Semua</option>
             {(events.data ?? []).map((ev) => <option key={ev.id} value={ev.name}>{ev.name}</option>)}
           </select>
         </Field>
         <Field label="Jenis">
-          <select className="input" value={f.kind} onChange={(e) => setFilter({ kind: e.target.value })}>
+          <select value={f.kind} onChange={(e) => setFilter({ kind: e.target.value })}>
             <option value="">Semua</option>
             <option value="UMUM">Input manual</option>
             <option value="AUTO">Otomatis sistem</option>
           </select>
         </Field>
+        {!showForm && <button className="btn" onClick={() => setShowForm(true)}>+ Transaksi baru</button>}
+        <ExportMenu
+          disabled={!d}
+          build={async () => ({
+            filename: "jurnal",
+            title: "Jurnal transaksi",
+            period: f.month ? BULAN[(f.month as number) - 1] : "Semua bulan",
+            columns: [
+              { header: "No. bukti", key: "voucherNo" }, { header: "Tanggal", key: "date" },
+              { header: "Debet", key: "debit" }, { header: "Kredit", key: "credit" },
+              { header: "Nominal", key: "amount", numeric: true }, { header: "Keterangan", key: "description" },
+              { header: "Event", key: "event" }, { header: "Pihak", key: "party" }, { header: "No. nota", key: "receiptNo" },
+            ],
+            // Seluruh hasil filter (semua halaman), bukan hanya halaman yang tampil.
+            rows: await fetchAllRows(f),
+          })}
+        />
       </div>
       {list.loading ? (
         <Loading />
       ) : list.error || !d ? (
         <ErrorBox message={list.error ?? "Gagal memuat."} onRetry={list.reload} />
       ) : (
-        <div className="bg-white rounded-xl border border-parang-divider overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-parang-subtle text-left bg-parang-bg">
+        <div className="tw">
+          <table className="t">
+            <thead>
               <tr>
-                <th className="px-3 py-2">No. bukti</th><th className="px-3">Tanggal</th><th className="px-3">Debet</th>
-                <th className="px-3">Kredit</th><th className="px-3 text-right">Nominal</th><th className="px-3">Keterangan</th><th />
+                <th>No. bukti</th><th>Tanggal</th><th>Debet</th><th>Kredit</th><th className="r">Nominal</th><th>Keterangan</th>
+                {isOwner && <th />}
               </tr>
             </thead>
             <tbody>
               {d.rows.map((j) => (
-                <tr key={j.voucherNo} className="border-t border-parang-divider align-top">
-                  <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
-                    {j.kind === "UMUM" ? j.voucherNo : <Pill tone={j.kind === "OTOMATIS" ? "info" : "wait"}>{j.kind === "OTOMATIS" ? "otomatis" : "penyesuaian"}</Pill>}
+                <tr key={j.voucherNo}>
+                  <td className="mono acc">
+                    {j.kind === "UMUM" ? j.voucherNo : <Pill tone={j.kind === "OTOMATIS" ? "auto" : "adj"}>{j.kind === "OTOMATIS" ? "otomatis" : "penyesuaian"}</Pill>}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">{tgl(j.date)}</td>
-                  <td className="px-3 py-2">{j.debit}</td>
-                  <td className="px-3 py-2">{j.credit}</td>
-                  <td className="px-3 py-2 text-right tnum">{num(j.amount)}</td>
-                  <td className="px-3 py-2 min-w-[240px]">
+                  <td className="acc">{tgl(j.date)}</td>
+                  <td className="acc">{j.debit}</td>
+                  <td className="acc">{j.credit}</td>
+                  <td className="r">{num(j.amount)}</td>
+                  <td className="ket">
                     {j.description}
-                    {j.event && <> <Pill tone="info">{j.event}</Pill></>}
-                    {j.party && <span className="text-xs text-parang-subtle"> · {j.party}</span>}
-                    {j.receiptNo && <span className="text-xs text-parang-subtle"> · nota {j.receiptNo}</span>}
+                    {j.event && <> <Pill tone="tag">{j.event}</Pill></>}
+                    {j.party && <span className="note"> · {j.party}</span>}
+                    {j.receiptNo && <span className="note"> · nota {j.receiptNo}</span>}
                   </td>
-                  <td className="px-2 py-2">
-                    {user?.role === "OWNER" && j.kind === "UMUM" && j.id && (
-                      <button className="text-parang-subtle hover:text-accent-danger" title="Batalkan (soft delete)" onClick={() => voidEntry(j.id!, j.voucherNo)}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
+                  {isOwner && (
+                    <td className="act">
+                      {j.kind === "UMUM" && j.id && (
+                        <button className="iconbtn" title="Batalkan (soft delete)" aria-label={`Batalkan ${j.voucherNo}`} onClick={() => voidEntry(j.id!, j.voucherNo)}>
+                          <Trash2 />
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
-              {!d.rows.length && (
-                <tr><td colSpan={7} className="px-3 py-6 text-center text-parang-subtle">Tidak ada transaksi yang cocok dengan filter.</td></tr>
-              )}
+              {!d.rows.length && <tr><td colSpan={isOwner ? 7 : 6} className="empty-row">Tidak ada transaksi yang cocok dengan filter.</td></tr>}
             </tbody>
           </table>
           {pages > 1 && (
-            <div className="flex items-center justify-between px-3 py-2 border-t border-parang-divider text-sm">
-              <span className="text-parang-subtle">Halaman {page} dari {pages}</span>
-              <div className="flex gap-2">
-                <button className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Sebelumnya</button>
-                <button className="btn-ghost" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Berikutnya</button>
+            <div className="pager">
+              <span>Halaman {page} dari {pages}</span>
+              <div className="btns">
+                <button className="btn ghost sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Sebelumnya</button>
+                <button className="btn ghost sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Berikutnya</button>
               </div>
             </div>
           )}

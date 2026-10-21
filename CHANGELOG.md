@@ -1,5 +1,32 @@
 # Perubahan
 
+## 21 Oktober 2026: tampilan disamakan dengan rancangan original
+
+Keputusan owner: tampilan web app mengikuti `original/kopi-parang-keuangan-artifact.html`, bukan design system Parang-ops.
+
+- `frontend/src/index.css` memakai CSS original apa adanya (nila + soga, Literata/IBM Plex, mode gelap otomatis),
+  plus kelas tambahan untuk halaman yang tidak ada di prototipe (login, pengguna, ekspor, pager).
+- Sidebar gelap dengan merek motif batik, lencana hari "perlu dicek" di menu Omzet Harian; header dengan chip
+  "Tutup buku s.d." dan pengguna yang masuk. Semua halaman memakai markup original (KPI, kalender, form, tabel
+  laporan `.t.rep`, wizard `.steps`, layar kasir `.kasir/.setor-row`).
+- Login tetap PIN per pengguna (tidak ada tombol ganti peran seperti di prototipe).
+- Backend: `/api/auth/me` ikut mengirim `fiscalYear` dan `closedMonth` untuk chip header (semua peran).
+- `.agents/tech-stack-frontend.md` diperbarui.
+
+## 21 Oktober 2026: login PIN, data dummy, database Supabase
+
+- **Login PIN untuk semua peran** (sementara, seperti Parang-ops): pilih nama + PIN 6 digit. Login email +
+  kata sandi + 2FA tetap ada di kode backend tapi belum dipakai UI. Owner tidak bisa dinonaktifkan/diturunkan
+  jika tinggal satu. Halaman Pengguna: tambah pengguna, ganti PIN, nonaktifkan.
+- **Seed dummy** (`npm run seed`): 191 jurnal, 288 hari omzet, 3 aset, 6 pihak, 3 event, bulan sebelum bulan berjalan
+  ditutup; bulan berjalan sengaja belum rapi untuk demo kasir & Tutup Buku. Akun dummy: Owner 111111, Admin
+  222222, Kasir 333333. Data diuji mesin hitung (4 cek kesehatan hijau, kas tidak negatif) sebelum ditulis.
+  Seed data asli dipindah ke `npm run seed:legacy` (PIN acak).
+- **Migrasi `enable_rls`**: RLS aktif di 16 tabel agar tidak terbuka lewat API publik Supabase.
+- `.env` disederhanakan: cukup `DATABASE_URL`. `KPK_SESSION_SECRET` acak otomatis di dev (wajib di production).
+- `tsconfig.json` backend: `moduleResolution` `node16` (menghilangkan peringatan deprecation TypeScript).
+- Database Supabase di-setup: 2 migrasi diterapkan + seed dummy.
+
 ## 20 Oktober 2026 (sore): stack disamakan dengan Parang-ops
 
 Prototipe HTML/JS dipindahkan ke stack yang sama dengan Parang-ops, sebagai project yang tetap terpisah.

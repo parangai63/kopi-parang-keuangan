@@ -11,6 +11,9 @@ export interface Me {
   email: string | null;
   role: Role;
   totpEnabled: boolean;
+  /** tahun buku aktif & bulan terakhir yang ditutup (0 = belum ada), untuk chip di header */
+  fiscalYear: number;
+  closedMonth: number;
 }
 
 export interface Settings {
