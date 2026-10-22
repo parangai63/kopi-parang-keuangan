@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { authApi } from "../api";
+import { clearApiCache } from "../utils/useApi";
 import type { Me } from "../types";
 
 interface AuthState {
@@ -24,13 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((r) => setUser(r.user))
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
-    const onUnauthorized = () => setUser(null);
+    const onUnauthorized = () => { clearApiCache(); setUser(null); };
     window.addEventListener("kpk:unauthorized", onUnauthorized);
     return () => window.removeEventListener("kpk:unauthorized", onUnauthorized);
   }, []);
 
   const logout = useCallback(async () => {
     await authApi.logout().catch(() => undefined);
+    clearApiCache();
     setUser(null);
   }, []);
 
