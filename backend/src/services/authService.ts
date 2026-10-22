@@ -1,4 +1,4 @@
-// Login & pengguna. Owner/admin: email + kata sandi + 2FA (TOTP). Kasir: pilih nama + PIN 6 digit.
+// Login & pengguna. Owner/admin: email + kata sandi + 2FA (TOTP). Kasir: PIN 6 digit (unik).
 // Tabel pengguna & PIN SENDIRI — tidak disinkronkan dengan PIN staf Parang-ops.
 import bcrypt from "bcryptjs";
 import { authenticator } from "otplib";
@@ -57,24 +57,41 @@ export async function loginWithPassword(email: string, password: string, totp?: 
   return { user: toSession(u), totpEnabled: u.totpEnabled };
 }
 
-/** Daftar pengguna aktif untuk layar PIN (hanya id, nama, peran) — pola sama dengan PIN gate Parang-ops. */
-export async function listLoginUsers() {
-  const rows = await prisma.user.findMany({ where: { isActive: true, pinHash: { not: null } }, orderBy: [{ role: "asc" }, { name: "asc" }] });
-  return rows.map((u) => ({ id: u.id, name: u.name, role: u.role }));
+// Login PIN tanpa memilih nama: PIN dicocokkan ke semua pengguna aktif (PIN dijamin unik, lihat saveUser).
+// Karena pengguna belum diketahui saat salah, batas percobaan dihitung per alamat klien (di memori server).
+const attempts = new Map<string, { count: number; lockedUntil: number }>();
+
+function assertClientNotLocked(client: string) {
+  const a = attempts.get(client);
+  if (a && a.lockedUntil > Date.now()) {
+    const mins = Math.ceil((a.lockedUntil - Date.now()) / 60000);
+    throw new HttpError(423, `Terlalu banyak percobaan salah. Coba lagi dalam ${mins} menit.`);
+  }
 }
 
-/** Login sementara untuk semua peran (owner, admin, kasir) memakai PIN 6 digit.
+function registerClientFailure(client: string) {
+  const a = attempts.get(client);
+  const count = (a && a.lockedUntil <= Date.now() ? a.count : 0) + 1;
+  attempts.set(client, count >= MAX_FAILED
+    ? { count: 0, lockedUntil: Date.now() + LOCK_MINUTES * 60000 }
+    : { count, lockedUntil: 0 });
+}
+
+/** Login sementara untuk semua peran (owner, admin, kasir) memakai PIN 6 digit, tanpa memilih nama.
  * Login email + kata sandi + 2FA (loginWithPassword) tetap ada di kode untuk diaktifkan kembali. */
-export async function loginWithPin(userId: number, pin: string) {
-  const u = await prisma.user.findUnique({ where: { id: userId } });
-  if (!u || !u.isActive || !u.pinHash) throw new HttpError(401, "PIN salah.");
-  await assertNotLocked(u);
-  if (!/^\d{6}$/.test(pin) || !(await bcrypt.compare(pin, u.pinHash))) {
-    await registerFailure(u);
-    throw new HttpError(401, "PIN salah.");
+export async function loginWithPin(pin: string, client: string) {
+  assertClientNotLocked(client);
+  if (/^\d{6}$/.test(pin)) {
+    const users = await prisma.user.findMany({ where: { isActive: true, pinHash: { not: null } } });
+    for (const u of users) {
+      if (await bcrypt.compare(pin, u.pinHash!)) {
+        attempts.delete(client);
+        return toSession(u);
+      }
+    }
   }
-  await registerSuccess(u);
-  return toSession(u);
+  registerClientFailure(client);
+  throw new HttpError(401, "PIN salah.");
 }
 
 export async function getMe(id: number) {
@@ -138,6 +155,11 @@ export async function saveUser(actor: SessionUser, id: number | null, i: UserInp
   // Sementara semua peran masuk dengan PIN 6 digit. Email & kata sandi opsional (untuk login 2FA nanti).
   if (i.pin !== undefined) {
     if (!/^\d{6}$/.test(i.pin)) throw badRequest("PIN harus 6 digit angka.");
+    // Login tanpa nama: PIN harus unik di antara semua pengguna.
+    const others = await prisma.user.findMany({ where: { pinHash: { not: null }, ...(id ? { id: { not: id } } : {}) } });
+    for (const o of others) {
+      if (await bcrypt.compare(i.pin, o.pinHash!)) throw badRequest("PIN sudah dipakai pengguna lain. Pilih PIN lain.");
+    }
     data.pinHash = await bcrypt.hash(i.pin, 10);
   } else if (!before?.pinHash) throw badRequest("PIN wajib diisi (6 digit angka).");
   if (i.password !== undefined && i.password !== "") {

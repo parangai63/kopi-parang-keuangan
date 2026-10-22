@@ -1,7 +1,7 @@
 // Endpoint per modul. Satu file karena tiap modul hanya beberapa baris.
 import { api, qs } from "./client";
 import type {
-  Account, AssetList, Role, AuditRow, BalanceSheetReport, CashFlowReport, ClosingPreview, DailyDay, DailyMonth,
+  Account, AssetList, AuditRow, BalanceSheetReport, CashFlowReport, ClosingPreview, DailyDay, DailyMonth,
   Dashboard, EquityReport, EventItem, EventResult, GeneralLedgerReport, JournalPage, KasirOverview, Me, Party,
   ProfitLossReport, Settings, TrialBalanceRow, UserRow,
 } from "../types";
@@ -12,8 +12,7 @@ export const authApi = {
   me: () => api<{ user: Me }>("/auth/me"),
   login: (email: string, password: string, totp?: string) =>
     api<{ user?: Me; needTotp?: boolean }>("/auth/login", { method: "POST", body: { email, password, totp } }),
-  loginUsers: () => api<{ id: number; name: string; role: Role }[]>("/auth/users"),
-  pin: (userId: number, pin: string) => api<{ user: Me }>("/auth/pin", { method: "POST", body: { userId, pin } }),
+  pin: (pin: string) => api<{ user: Me }>("/auth/pin", { method: "POST", body: { pin } }),
   logout: () => api<{ ok: true }>("/auth/logout", { method: "POST" }),
   totpSetup: () => api<{ secret: string; otpauthUrl: string }>("/auth/totp/setup", { method: "POST" }),
   totpConfirm: (code: string) => api<{ ok: true }>("/auth/totp/confirm", { method: "POST", body: { code } }),

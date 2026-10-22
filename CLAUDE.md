@@ -18,7 +18,7 @@ Sumber kebenaran: `docs/SPESIFIKASI.md`. Kalau kode dan spesifikasi berbeda, iku
 | --- | --- | --- |
 | Mencatat | Barang: stok, pembelian, repack, prep, resep, HPP per menu, absensi | Uang: omzet harian, setoran, jurnal, aset tetap, pajak, laporan |
 | Majoo | Import Excel "Laporan Penjualan Produk" | Tidak ada koneksi. Angka tutup kasir diketik kasir |
-| Login | PIN staf | PIN 6 digit sendiri untuk semua peran (sementara; rencana spesifikasi: email + 2FA untuk owner/admin) |
+| Login | PIN staf | PIN 6 digit sendiri (unik, tanpa pilih nama) untuk semua peran (sementara; rencana spesifikasi: email + 2FA untuk owner/admin) |
 
 - **Jangan** menambah koneksi ke Majoo atau Parang-ops (API, import file, tabel/database bersama, SSO, sinkron PIN).
 - **Jangan** menambah modul stok/resep/absensi di sini. Laba/kas/utang hanya dihitung di sini.

@@ -17,7 +17,6 @@ const ownerOnly = requireRole(OWNER);
 // ---------- auth (publik kecuali /me & 2FA) ----------
 export const authRoutes = Router();
 authRoutes.post("/login", h(admin.postLogin));
-authRoutes.get("/users", h(admin.getLoginUsers));
 authRoutes.post("/pin", h(admin.postPinLogin));
 authRoutes.post("/logout", h(admin.postLogout));
 authRoutes.get("/me", requireAuth, h(admin.getMe));

@@ -24,12 +24,9 @@ export async function postLogin(req: Request, res: Response) {
   issueSession(res, r.user);
   res.json({ user: await auth.getMe(r.user.id) });
 }
-export async function getLoginUsers(_req: Request, res: Response) {
-  res.json(await auth.listLoginUsers());
-}
 export async function postPinLogin(req: Request, res: Response) {
-  const { userId, pin } = req.body ?? {};
-  const user = await auth.loginWithPin(intParam(userId, "Kasir"), String(pin ?? ""));
+  const client = String(req.headers["x-forwarded-for"] ?? req.ip ?? "").split(",")[0].trim();
+  const user = await auth.loginWithPin(String(req.body?.pin ?? ""), client);
   issueSession(res, user);
   res.json({ user: await auth.getMe(user.id) });
 }

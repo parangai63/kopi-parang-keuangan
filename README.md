@@ -47,7 +47,7 @@ npm run dev
 
 ### Login & data dummy
 
-Login sementara memakai **PIN 6 digit** untuk semua peran (pilih nama, lalu PIN). `npm run seed` membuat data
+Login sementara memakai **PIN 6 digit** untuk semua peran (tanpa pilih nama; PIN harus unik antar pengguna). `npm run seed` membuat data
 dummy (fiktif, Jan s.d. kemarin, bulan sebelum bulan berjalan sudah ditutup) dan 3 akun:
 
 | Nama | Peran | PIN |
