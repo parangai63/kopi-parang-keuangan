@@ -1,5 +1,9 @@
 // Definisi baris tiap laporan keuangan (mengikuti susunan sheet Excel v2).
-import type { BalanceSheet, BalanceSheetReport, CashFlowReport, EquityReport, ProfitLoss, ProfitLossReport, TrialBalanceRow } from "../../types";
+import type {
+  BalanceSheet, BalanceSheetReport, CashFlowReport, EquityReport, EventResult, ProfitLoss, ProfitLossReport, SalesRecapReport,
+  TaxMonth, TrialBalanceRow,
+} from "../../types";
+import { acct, num, tgl } from "../../utils/format";
 import type { ReportRow } from "./ReportTable";
 
 const OPEX_LABEL: Record<string, string> = {
@@ -51,6 +55,7 @@ export function profitLossRows(r: ProfitLossReport): ReportRow[] {
     { label: "Payroll (gaji)", style: "ratio", format: "pct", limit: r.limits.payroll, values: ratio(gaji) },
     { label: "Occupancy (sewa)", style: "ratio", format: "pct", limit: r.limits.occupancy, values: ratio(sewa) },
     { label: "Prime cost (HPP + gaji)", style: "ratio", format: "pct", limit: r.limits.primeCost, values: ratio((p) => p.cogs + gaji(p)) },
+    { label: "Marketing & event", style: "ratio", format: "pct", values: ratio((p) => p.opex["Biaya Marketing & Promosi"] ?? 0) },
   ];
 }
 
@@ -143,5 +148,82 @@ export function trialBalanceRows(rows: TrialBalanceRow[]): ReportRow[] {
       values: [r.signedOpening, r.debitMutation, r.creditMutation, r.debitBalance || null, r.creditBalance || null],
     })),
     { label: "Total", style: "grand", values: [null, null, null, td, tc] },
+  ];
+}
+
+/** Sheet REKAP OMZET: kolom = tiap bulan (termasuk bulan berjalan) + total. */
+export function salesRecapRows(r: SalesRecapReport): ReportRow[] {
+  const ms = r.months;
+  const sum = (fn: (m: SalesRecapReport["months"][number]) => number) => withTotal(ms.map(fn));
+  const net = ms.reduce((s, m) => s + m.netRevenue, 0);
+  const days = ms.reduce((s, m) => s + m.openDays, 0);
+  const trx = ms.reduce((s, m) => s + m.transactions, 0);
+  const target = r.target * ms.length;
+  return [
+    { label: "Omzet tercatat (POS)", style: "sum", values: sum((m) => m.totalPos) },
+    { label: "Tunai", style: "ind", values: sum((m) => m.cashPos) },
+    { label: "EDC / QRIS", style: "ind", values: sum((m) => m.edcPos) },
+    { label: "Realisasi masuk kas", values: sum((m) => m.realized) },
+    { label: "Selisih tunai", values: sum((m) => m.cashDiff) },
+    { label: "dijelaskan: bon karyawan", style: "ind", values: sum((m) => m.staffBon) },
+    { label: "dijelaskan: compliment", style: "ind", values: sum((m) => m.compliment) },
+    { label: "dijelaskan: bill owner", style: "ind", values: sum((m) => m.ownerBill) },
+    { label: "Selisih tunai tak terjelaskan", values: sum((m) => m.unexplainedCash) },
+    { label: "Selisih EDC (MDR / settlement)", values: sum((m) => m.edcDiff) },
+    { label: "Omzet bersih", style: "grand", values: sum((m) => m.netRevenue) },
+    { label: "Indikator penjualan", style: "h" },
+    { label: "Hari buka", style: "ind", values: sum((m) => m.openDays) },
+    { label: "Rata-rata omzet bersih / hari", style: "ind", values: [...ms.map((m) => m.avgPerDay), days ? net / days : null] },
+    { label: "Jumlah transaksi", style: "ind", values: sum((m) => m.transactions) },
+    { label: "Rata-rata nilai / transaksi (avg ticket)", style: "ind", values: [...ms.map((m) => m.avgTicket), trx ? net / trx : null] },
+    { label: "Produk terjual", style: "ind", values: sum((m) => m.itemsSold) },
+    { label: "Target omzet", style: "ind", values: [...ms.map(() => r.target), target] },
+    { label: "Pencapaian target", style: "ratio", format: "pct", values: [...ms.map((m) => m.targetAchievement), target ? net / target : null] },
+    { label: "Pertumbuhan vs bulan lalu", style: "ratio", format: "pct", values: [...ms.map((m) => m.growth), null] },
+    { label: "Hari belum direalisasi / perlu dicek", style: "ind", values: sum((m) => m.notOkDays) },
+  ];
+}
+
+/** Sheet PAJAK: kolom = tiap bulan ditutup + total. */
+export function taxRows(ms: TaxMonth[]): ReportRow[] {
+  const sum = (fn: (m: TaxMonth) => number | null) => withTotal(ms.map((m) => fn(m) ?? 0));
+  const val = (fn: (m: TaxMonth) => number | null) => [...ms.map(fn), ms.reduce((s, m) => s + (fn(m) ?? 0), 0)];
+  const recorded = ms.reduce((s, m) => s + m.recordedRevenue, 0);
+  const reported = ms.reduce((s, m) => s + (m.reportedRevenue ?? 0), 0);
+  return [
+    { label: "Omzet tercatat (asli, POS)", values: sum((m) => m.recordedRevenue) },
+    { label: "Omzet dilaporkan ke Bapenda", values: val((m) => m.reportedRevenue) },
+    { label: "% dilaporkan", style: "ratio", format: "pct", values: [...ms.map((m) => m.reportedPct), recorded ? reported / recorded : null] },
+    { label: "Selisih omzet tak dilaporkan", values: val((m) => m.revenueGap) },
+    { label: "Perhitungan PBJT", style: "h" },
+    { label: "DPP seharusnya", style: "ind", values: sum((m) => m.dpp) },
+    { label: "PBJT terutang", style: "ind", values: sum((m) => m.pbjtDue) },
+    { label: "PBJT dibayar (SSPD)", style: "ind", values: val((m) => m.pbjtPaid) },
+    { label: "PBJT kurang bayar", style: "grand", values: sum((m) => m.underpaid) },
+    { label: "Cek ke jurnal", style: "h" },
+    { label: "Dibayar menurut jurnal", style: "ind", values: sum((m) => m.paidPerJournal) },
+    {
+      label: "Cocok dengan SSPD?", style: "ind",
+      text: [...ms.map((m) => (m.pbjtPaid == null ? "SSPD kosong" : m.matchesJournal ? "✔" : "✖")), ms.every((m) => m.matchesJournal) ? "✔" : "✖"],
+    },
+  ];
+}
+
+/** Sheet ANALISIS EVENT: satu baris per tag event + total. Kolom campuran, jadi ditulis sebagai teks. */
+export const EVENT_COLUMNS = ["Mulai", "Transaksi", "Pendapatan", "Biaya", "Laba (rugi)", "Biaya per Rp1"];
+
+export function eventRows(events: EventResult[]): ReportRow[] {
+  const rev = events.reduce((s, e) => s + e.revenue, 0);
+  const cost = events.reduce((s, e) => s + e.cost, 0);
+  const ratio = (x: number | null) => (x == null ? "–" : x.toFixed(2).replace(".", ","));
+  return [
+    ...events.map((e): ReportRow => ({
+      label: e.name,
+      text: [tgl(e.firstDate), num(e.count), num(e.revenue), num(e.cost), acct(e.profit), ratio(e.costPerRevenue)],
+    })),
+    {
+      label: "Total event", style: "grand",
+      text: ["", num(events.reduce((s, e) => s + e.count, 0)), num(rev), num(cost), acct(rev - cost), ratio(rev ? cost / rev : null)],
+    },
   ];
 }

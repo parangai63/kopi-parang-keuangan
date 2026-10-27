@@ -15,6 +15,13 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (p: PageId) 
   const B = d.closedMonth;
   const nm = T.netRevenue ? T.netProfit / T.netRevenue : null;
   const gm = T.netRevenue ? T.grossProfit / T.netRevenue : null;
+  const L = d.limits;
+  const share = (x: number, base: number) => (base ? x / base : null);
+  const over = (r: number | null, limit: number) => r != null && r > limit;
+  const payroll = T.opex["Beban Gaji"] ?? 0;
+  const foodCost = share(T.cogs, T.netRevenue);
+  const primeCost = share(T.cogs + payroll, T.netRevenue);
+  const cash = d.cash.onHand + d.cash.bank + d.cash.petty;
 
   return (
     <>
@@ -29,6 +36,9 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (p: PageId) 
             <Kpi label="Laba bersih" value={rp(T.netProfit)} sub={`margin ${pct(nm)} · target ≥ ${pct(d.limits.netMargin, 0)}`} tone={T.netProfit < 0 ? "neg" : "pos"} />
             <Kpi label="Omzet bersih / hari" value={rp(d.netRevenuePerOpenDay)} sub="rata-rata hari buka" />
             <Kpi label="Rata-rata / transaksi" value={rp(d.avgTicket)} sub="avg ticket" />
+            <Kpi label="Total kas" value={rp(cash)} sub={`tunai ${jt(d.cash.onHand)} · bank ${jt(d.cash.bank)}`} tone={d.cash.bank < 0 ? "neg" : undefined} />
+            <Kpi label="Food cost" value={pct(foodCost)} sub={`HPP, batas ${pct(L.foodCost, 0)}`} tone={over(foodCost, L.foodCost) ? "neg" : "pos"} />
+            <Kpi label="Prime cost" value={pct(primeCost)} sub={`HPP + gaji, batas ${pct(L.primeCost, 0)}`} tone={over(primeCost, L.primeCost) ? "neg" : "pos"} />
           </div>
 
           <div className="two">
@@ -68,6 +78,36 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (p: PageId) 
               </Panel>
             </div>
           </div>
+
+          <Panel title="Rincian per bulan" hint={`Food cost dan payroll terhadap pendapatan bersih; merah = melewati batas di Pengaturan (${pct(L.foodCost, 0)} / ${pct(L.payroll, 0)}).`}>
+            <div className="tw">
+              <table className="t">
+                <thead>
+                  <tr>
+                    <th>Bulan</th><th className="r">Pendapatan bersih</th><th className="r">Laba kotor</th><th className="r">Laba bersih</th>
+                    <th className="r">Food cost</th><th className="r">Payroll</th><th className="r">Kas akhir</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.monthly.map((m) => {
+                    const fc = share(m.cogs, m.netRevenue);
+                    const pr = share(m.payroll, m.netRevenue);
+                    return (
+                      <tr key={m.month}>
+                        <td>{BULAN[m.month - 1]}</td>
+                        <td className="r">{num(m.netRevenue)}</td>
+                        <td className="r">{num(m.grossProfit)}</td>
+                        <td className={`r ${m.netProfit < 0 ? "neg" : "pos"}`}>{acct(m.netProfit)}</td>
+                        <td className={`r ${over(fc, L.foodCost) ? "neg" : ""}`}>{pct(fc)}</td>
+                        <td className={`r ${over(pr, L.payroll) ? "neg" : ""}`}>{pct(pr)}</td>
+                        <td className={`r ${m.cashClosing < 0 ? "neg" : ""}`}>{acct(m.cashClosing)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
 
           <Panel title="Hasil per event" hint="Dari jurnal yang diberi tag event. Biaya tanpa tag tidak ikut terhitung.">
             <div className="tw">

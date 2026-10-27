@@ -10,6 +10,7 @@ import DailySalesPage from "./pages/DailySales";
 import KasirPage from "./pages/Kasir";
 import JournalPage from "./pages/Journal";
 import ReportsPage from "./pages/Reports";
+import AnalysisPage from "./pages/Analysis";
 import AssetsPage from "./pages/Assets";
 import PartiesPage from "./pages/Parties";
 import ClosingPage from "./pages/Closing";
@@ -44,6 +45,8 @@ function AppContent() {
               return <JournalPage />;
             case "laporan":
               return <ReportsPage />;
+            case "analisis":
+              return <AnalysisPage />;
             case "aset":
               return <AssetsPage />;
             case "pihak":

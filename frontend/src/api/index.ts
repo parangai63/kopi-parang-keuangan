@@ -3,7 +3,7 @@ import { api, qs } from "./client";
 import type {
   Account, AssetList, AuditRow, BalanceSheetReport, CashFlowReport, ClosingPreview, DailyDay, DailyMonth,
   Dashboard, EquityReport, EventItem, EventResult, GeneralLedgerReport, JournalPage, KasirOverview, Me, Party,
-  ProfitLossReport, Settings, TrialBalanceRow, UserRow,
+  ProfitLossReport, SalesRecapReport, Settings, TaxReport, TrialBalanceRow, UserRow,
 } from "../types";
 
 type Id = { id: number };
@@ -73,7 +73,9 @@ export const reportApi = {
   equity: () => api<EquityReport>("/reports/equity-changes"),
   trialBalance: () => api<{ year: number; closedMonth: number; rows: TrialBalanceRow[] }>("/reports/trial-balance"),
   generalLedger: (account: string) => api<GeneralLedgerReport>(`/reports/general-ledger${qs({ account })}`),
-  events: () => api<{ year: number; events: EventResult[] }>("/reports/events"),
+  events: () => api<{ year: number; closedMonth: number; events: EventResult[] }>("/reports/events"),
+  salesRecap: () => api<SalesRecapReport>("/reports/sales-recap"),
+  tax: () => api<TaxReport>("/reports/tax"),
 };
 
 export const closingApi = {

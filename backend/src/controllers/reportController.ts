@@ -33,8 +33,17 @@ export async function getDashboard(_req: Request, res: Response) {
     monthly: range(R.closedMonth).map((m) => ({
       month: m,
       netRevenue: R.profitLoss[m].netRevenue,
+      grossProfit: R.profitLoss[m].grossProfit,
       netProfit: R.profitLoss[m].netProfit,
+      cogs: R.profitLoss[m].cogs,
+      payroll: R.profitLoss[m].opex["Beban Gaji"] ?? 0,
+      cashClosing: R.cashFlow[m].closing,
     })),
+    cash: {
+      onHand: R.balanceSheet.closing.cashOnHand,
+      bank: R.balanceSheet.closing.cashInBank,
+      petty: R.balanceSheet.closing.pettyCash,
+    },
     netRevenuePerOpenDay: R.netRevenuePerOpenDay,
     avgTicket: R.avgTicket,
     limits: limitsOf(s),
@@ -102,7 +111,7 @@ export async function getGeneralLedger(req: Request, res: Response) {
 
 export async function getEvents(_req: Request, res: Response) {
   const { result: R } = await computeLedger();
-  res.json({ year: R.year, events: R.events });
+  res.json({ year: R.year, closedMonth: R.closedMonth, events: R.events });
 }
 
 /** Rekap omzet termasuk bulan berjalan (Logika 11). */

@@ -109,7 +109,7 @@ async function main() {
     })),
   });
   await prisma.taxFiling.createMany({
-    data: Object.entries(input.taxFilings).map(([m, f]) => ({ year: S.year, month: Number(m), pbjtPaid: big(f.pbjtPaid) })),
+    data: Object.entries(input.taxFilings).map(([m, f]) => ({ year: S.year, month: Number(m), pbjtPaid: big(f.pbjtPaid), reportedRevenue: big(f.reportedRevenue) })),
   });
   await prisma.periodClosing.createMany({
     data: Array.from({ length: S.closedMonth }, (_, i) => ({ year: S.year, month: i + 1, closedAt: new Date() })),

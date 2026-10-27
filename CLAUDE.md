@@ -65,7 +65,7 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 - Skrip migrasi yang membaca file Excel v2 langsung (`seed-legacy.ts` sementara memakai `prototype/data.js`).
 - Login email + kata sandi + 2FA untuk owner/admin (kodenya ada di `authService.loginWithPassword`, belum dipakai UI; sementara semua peran login PIN).
 - Rincian saldo awal per pihak (`opening_balance_details`) belum diisi seed.
-- Halaman Rekap Omzet, Analisis Event detail, Pajak (PBJT), CALK di frontend (endpoint
-  `/api/reports/sales-recap`, `/events`, `/tax` sudah ada) — Fase 3.
+- CALK di frontend — Fase 3. (Rekap Omzet, Pajak PBJT, Analisis Event sudah ada di menu Analisis;
+  keterangan per event dari `event_notes` belum ada endpoint-nya.)
 - Edit jurnal & aset dari UI (endpoint PUT sudah ada), kelola akun dari UI (endpoint sudah ada).
 - Pembuatan tahun buku baru (rollover 2027).

@@ -1,5 +1,20 @@
 # Perubahan
 
+## 27 Oktober 2026: menu Analisis & pelengkap dari Excel v2
+
+Keputusan: navigasi dan alur aplikasi tetap; dari Excel v2 diambil isi, rumus, dan sheet yang belum ada.
+
+- **Menu Analisis** (owner/admin) dengan tab Rekap Omzet, Pajak (PBJT), dan Analisis Event, mengikuti isi sheet
+  REKAP OMZET, PAJAK, dan ANALISIS EVENT. Rekap Omzet ikut menampilkan bulan berjalan (bertanda *), Pajak hanya
+  bulan yang sudah ditutup. Semua bisa diekspor ke Excel/PDF.
+- **Dashboard**: KPI Total kas (rincian tunai/bank), Food cost, dan Prime cost dengan batas dari Pengaturan, plus
+  tabel rincian per bulan (pendapatan bersih, laba kotor, laba bersih, food cost, payroll, kas akhir).
+- **Laba Rugi**: baris rasio Marketing & event (sheet LABA RUGI baris 51).
+- `Statement` dipindah ke `components/reports/Statement.tsx` agar dipakai halaman Laporan dan Analisis.
+- Seed legacy: omzet dilaporkan ke Bapenda Jan–Sep (sheet PAJAK kolom D) ikut diimpor ke `tax_filings`.
+- Angka dicocokkan dengan Excel v2: omzet bersih per bulan, selisih tunai/EDC, PBJT kurang bayar 59.326.181,
+  kas akhir per bulan, laba rugi per event. `check:patokan` tetap lolos.
+
 ## 21 Oktober 2026: tampilan disamakan dengan rancangan original
 
 Keputusan owner: tampilan web app mengikuti `original/kopi-parang-keuangan-artifact.html`, bukan design system Parang-ops.

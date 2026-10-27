@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { reportApi } from "../api";
-import { useApi } from "../utils/useApi";
-import { BLN3, lastDay, periodLabel, tgl } from "../utils/format";
-import { ErrorBox, Loading, PageHeader } from "../components/ui";
-import ExportMenu from "../components/ExportMenu";
-import { ReportRow, ReportTable, toExport } from "../components/reports/ReportTable";
+import { lastDay, periodLabel, tgl } from "../utils/format";
+import { PageHeader } from "../components/ui";
+import { Built, monthCols, Statement } from "../components/reports/Statement";
 import { balanceSheetRows, cashFlowRows, equityRows, profitLossRows, trialBalanceRows } from "../components/reports/buildRows";
 import GeneralLedger from "../components/reports/GeneralLedger";
 
@@ -13,36 +11,6 @@ type Tab = "lr" | "nr" | "ak" | "pe" | "ns" | "bb";
 const TABS: [Tab, string][] = [
   ["lr", "Laba Rugi"], ["nr", "Neraca"], ["ak", "Arus Kas"], ["pe", "Perubahan Ekuitas"], ["ns", "Neraca Saldo"], ["bb", "Buku Besar"],
 ];
-
-const monthCols = (closed: number) => [...Array.from({ length: closed }, (_, i) => BLN3[i]), `s.d. ${BLN3[closed - 1]}`];
-
-interface Built {
-  year: number;
-  closedMonth: number;
-  columns: string[];
-  rows: ReportRow[];
-  firstHeader?: string;
-  note?: string;
-}
-
-/** Satu tab laporan: muat data → bangun baris → tabel + tombol ekspor. */
-function Statement({ title, load }: { title: string; load: () => Promise<Built> }) {
-  const { data, loading, error, reload } = useApi(load, [load]);
-  if (loading) return <Loading />;
-  if (error || !data) return <ErrorBox message={error ?? "Gagal memuat."} onRetry={reload} />;
-  if (!data.closedMonth) return <p className="note">Belum ada bulan yang ditutup.</p>;
-  const period = periodLabel(data.year, data.closedMonth);
-  return (
-    <>
-      <div className="rep-bar">
-        <div className="rep-head">KOPI PARANG · {period} · dalam Rupiah</div>
-        <ExportMenu build={() => ({ filename: title.toLowerCase().replace(/\s+/g, "-"), title, period, ...toExport(data.columns, data.rows, data.firstHeader) })} />
-      </div>
-      <ReportTable columns={data.columns} rows={data.rows} firstHeader={data.firstHeader} />
-      {data.note && <p className="note" style={{ marginTop: 10 }}>{data.note}</p>}
-    </>
-  );
-}
 
 // Loader stabil (di luar komponen) supaya useApi tidak memuat ulang terus.
 const LOADERS: Record<Exclude<Tab, "bb">, [string, () => Promise<Built>]> = {

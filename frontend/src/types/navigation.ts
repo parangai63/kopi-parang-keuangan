@@ -1,6 +1,6 @@
 import type { Role } from "./index";
 
-export type PageId = "dashboard" | "omzet" | "kasir" | "jurnal" | "laporan" | "aset" | "pihak" | "tutup-buku" | "pengaturan" | "pengguna";
+export type PageId = "dashboard" | "omzet" | "kasir" | "jurnal" | "laporan" | "analisis" | "aset" | "pihak" | "tutup-buku" | "pengaturan" | "pengguna";
 
 export interface NavItem {
   id: PageId;
@@ -15,6 +15,7 @@ export const NAV: NavItem[] = [
   { id: "omzet", label: "Omzet Harian", roles: ["OWNER", "ADMIN"] },
   { id: "jurnal", label: "Jurnal", roles: ["OWNER", "ADMIN"] },
   { id: "laporan", label: "Laporan", roles: ["OWNER", "ADMIN"] },
+  { id: "analisis", label: "Analisis", roles: ["OWNER", "ADMIN"] },
   { id: "aset", label: "Aset Tetap", roles: ["OWNER", "ADMIN"] },
   { id: "pihak", label: "Pihak", roles: ["OWNER", "ADMIN"] },
   { id: "tutup-buku", label: "Tutup Buku", roles: ["OWNER", "ADMIN"] },

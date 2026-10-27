@@ -34,6 +34,11 @@ export function readRawData(): RawData {
   return ctx.window.KP_DATA;
 }
 
+/** Omzet yang dilaporkan ke Bapenda Jan–Sep 2026 (sheet PAJAK kolom D); tidak ada di prototype/data.js. */
+const LEGACY_REPORTED_REVENUE: Record<number, number> = {
+  1: 20562000, 2: 16640000, 3: 23100000, 4: 20580000, 5: 22570000, 6: 22320000, 7: 20940000, 8: 19951000, 9: 20960000,
+};
+
 export function legacyEngineInput(): EngineInput {
   const D = readRawData();
   return {
@@ -67,7 +72,7 @@ export function legacyEngineInput(): EngineInput {
     })),
     assets: D.assets.map((a) => ({ name: a[0], acquiredOn: a[1], cost: a[2], usefulLifeYears: a[3] })),
     taxFilings: Object.fromEntries(
-      Object.entries(D.paid).map(([m, paid]) => [Number(m), { pbjtPaid: paid, reportedRevenue: null }]),
+      Object.entries(D.paid).map(([m, paid]) => [Number(m), { pbjtPaid: paid, reportedRevenue: LEGACY_REPORTED_REVENUE[Number(m)] ?? null }]),
     ),
     ops: {},
   };

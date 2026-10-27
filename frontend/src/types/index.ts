@@ -193,7 +193,8 @@ export interface Dashboard {
   year: number;
   closedMonth: number;
   total: ProfitLoss;
-  monthly: { month: number; netRevenue: number; netProfit: number }[];
+  monthly: { month: number; netRevenue: number; grossProfit: number; netProfit: number; cogs: number; payroll: number; cashClosing: number }[];
+  cash: { onHand: number; bank: number; petty: number };
   netRevenuePerOpenDay: number;
   avgTicket: number;
   limits: Limits;
@@ -201,6 +202,58 @@ export interface Dashboard {
   checks: HealthCheck[];
   events: EventResult[];
   running: { month: number; openDays: number; notOkDays: number } | null;
+}
+
+/** Rekap omzet per bulan (sheet REKAP OMZET), termasuk bulan berjalan. */
+export interface SalesRecapMonth {
+  month: number;
+  totalPos: number;
+  cashPos: number;
+  edcPos: number;
+  realized: number;
+  cashDiff: number;
+  staffBon: number;
+  compliment: number;
+  ownerBill: number;
+  unexplainedCash: number;
+  edcDiff: number;
+  netRevenue: number;
+  openDays: number;
+  transactions: number;
+  itemsSold: number;
+  notOkDays: number;
+  avgPerDay: number | null;
+  avgTicket: number | null;
+  targetAchievement: number | null;
+  growth: number | null;
+}
+
+export interface SalesRecapReport {
+  year: number;
+  closedMonth: number;
+  target: number;
+  months: SalesRecapMonth[];
+}
+
+/** Rekonsiliasi PBJT per bulan (sheet PAJAK). */
+export interface TaxMonth {
+  month: number;
+  recordedRevenue: number;
+  dpp: number;
+  pbjtDue: number;
+  pbjtPaid: number | null;
+  underpaid: number;
+  reportedRevenue: number | null;
+  reportedPct: number | null;
+  revenueGap: number | null;
+  paidPerJournal: number;
+  matchesJournal: boolean;
+}
+
+export interface TaxReport {
+  year: number;
+  closedMonth: number;
+  months: TaxMonth[];
 }
 
 export interface ProfitLossReport {
