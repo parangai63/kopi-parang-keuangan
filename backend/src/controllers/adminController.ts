@@ -108,6 +108,12 @@ export async function postAccount(req: Request, res: Response) {
 export async function putAccount(req: Request, res: Response) {
   res.json({ id: await master.updateAccount(req.user!, intParam(req.params.id, "ID"), req.body ?? {}) });
 }
+export async function getOpeningDetails(_req: Request, res: Response) {
+  res.json(await master.listOpeningDetails());
+}
+export async function putOpeningDetails(req: Request, res: Response) {
+  res.json({ id: await master.replaceOpeningDetails(req.user!, intParam(req.params.id, "ID"), req.body?.rows ?? []) });
+}
 
 // ---------- pihak ----------
 export async function getParties(req: Request, res: Response) {
@@ -128,6 +134,9 @@ export async function putParty(req: Request, res: Response) {
 // ---------- event ----------
 export async function getEventList(_req: Request, res: Response) {
   res.json(await master.listEvents());
+}
+export async function putEventNote(req: Request, res: Response) {
+  res.json({ id: await master.addEventNote(req.user!, intParam(req.params.id, "ID"), req.body?.note) });
 }
 export async function postEvent(req: Request, res: Response) {
   res.status(201).json({ id: await master.createEvent(req.user!, req.body ?? {}) });

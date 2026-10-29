@@ -27,10 +27,11 @@ Sumber kebenaran: `docs/SPESIFIKASI.md`. Kalau kode dan spesifikasi berbeda, iku
 ## Peta kode
 
 ```
-backend/src/engine/engine.ts     mesin hitung murni (compute, calcDay, generalLedger) — port 1:1 prototype/engine.js
+backend/src/engine/engine.ts     mesin hitung murni (compute, calcDay, generalLedger) — asal port prototype/engine.js;
+                                 kini jurnal otomatis dibuat untuk semua bulan berdata, sama seperti sheet JURNAL Excel
 backend/src/services/            business logic + Prisma + audit (ledgerService memuat DB → input mesin)
 backend/src/routes/index.ts      semua route + hak akses per peran
-backend/prisma/schema.prisma     model data; seed.ts = data dummy, seed-legacy.ts = impor prototype/data.js (data asli)
+backend/prisma/schema.prisma     model data; seed.ts = data dummy, seed-legacy.ts = impor file Excel v2 langsung (excelData.ts)
 frontend/src/pages/              satu halaman per menu
 frontend/src/components/reports/ ReportTable + buildRows (tampilan & ekspor dari definisi yang sama)
 ```
@@ -62,10 +63,8 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 
 ## Belum dikerjakan (lihat fase di spesifikasi)
 
-- Skrip migrasi yang membaca file Excel v2 langsung (`seed-legacy.ts` sementara memakai `prototype/data.js`).
 - Login email + kata sandi + 2FA untuk owner/admin (kodenya ada di `authService.loginWithPassword`, belum dipakai UI; sementara semua peran login PIN).
-- Rincian saldo awal per pihak (`opening_balance_details`) belum diisi seed.
-- CALK di frontend — Fase 3. (Rekap Omzet, Pajak PBJT, Analisis Event sudah ada di menu Analisis;
-  keterangan per event dari `event_notes` belum ada endpoint-nya.)
-- Edit jurnal & aset dari UI (endpoint PUT sudah ada), kelola akun dari UI (endpoint sudah ada).
+- Edit jurnal dari UI (endpoint PUT sudah ada).
+- Akumulasi penyusutan awal tahun untuk aset sebelum 2026 (perlu kolom baru di `fixed_assets` + saldo awal
+  Peralatan/Akumulasi; menunggu inventarisasi owner).
 - Pembuatan tahun buku baru (rollover 2027).

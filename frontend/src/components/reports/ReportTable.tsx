@@ -60,7 +60,7 @@ export function ReportTable({ columns, rows, firstHeader = "Keterangan" }: { col
 export function toExport(columns: string[], rows: ReportRow[], firstHeader = "Keterangan") {
   const cols: ExportColumn[] = [{ header: firstHeader, key: "label" }, ...columns.map((c, i) => ({ header: c, key: `c${i}`, numeric: true }))];
   const data = rows.map((r) => {
-    const o: Record<string, unknown> = { label: (r.style === "ind" || r.style === "ratio" ? "   " : "") + r.label };
+    const o: Record<string, unknown> = { label: (r.style === "ind" || r.style === "ratio" ? "   " : "") + r.label, __style: r.style };
     columns.forEach((_, i) => (o[`c${i}`] = r.text ? r.text[i] : fmt(r.values?.[i], r.format)));
     return o;
   });

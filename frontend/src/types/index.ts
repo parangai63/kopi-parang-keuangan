@@ -49,6 +49,15 @@ export interface Account {
   isUsed: boolean;
 }
 
+/** Rincian saldo awal 1 Januari per pihak (piutang/utang). */
+export interface OpeningDetail {
+  id: number;
+  accountId: number;
+  partyId: number;
+  partyName: string;
+  amount: number;
+}
+
 export interface Party {
   id: number;
   name: string;
@@ -177,6 +186,9 @@ export interface HealthCheck {
   label: string;
   ok: boolean;
   diff: number;
+  /** "warn" = peringatan (⚠), bukan kesalahan hitung */
+  level?: "warn";
+  note?: string;
 }
 
 export interface EventResult {
@@ -187,6 +199,23 @@ export interface EventResult {
   profit: number;
   costPerRevenue: number | null;
   count: number;
+  /** hanya di /reports/events */
+  id?: number | null;
+  note?: string;
+}
+
+/** CALK: bagian teks + hasil isian placeholder. */
+export interface NoteSection {
+  title: string;
+  body: string;
+}
+
+export interface NotesReport {
+  year: number;
+  closedMonth: number;
+  isDefault: boolean;
+  variables: { key: string; label: string; value: string }[];
+  sections: (NoteSection & { rendered: string })[];
 }
 
 export interface Dashboard {
@@ -345,6 +374,8 @@ export interface AssetSchedule {
   usefulLifeYears: number;
   perMonth: number;
   depreciationStart: string;
+  /** penyusutan per bulan, indeks 1–12 (indeks 0 tidak dipakai) */
+  schedule: number[];
   accumulated: number;
   bookValue: number;
 }

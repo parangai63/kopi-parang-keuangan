@@ -4,7 +4,7 @@
 // Jalankan: cd backend && npm run check:patokan
 import { compute } from "../src/engine/engine";
 import type { EngineInput } from "../src/engine/types";
-import { legacyEngineInput } from "../prisma/legacyData";
+import { compareWithMutasi, readExcelV2 } from "../prisma/excelData";
 
 const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 let fail = 0;
@@ -18,8 +18,16 @@ const flag = (label: string, ok: boolean) => {
   console.log(`${ok ? "OK  " : "BEDA"}  ${label}`);
 };
 
-console.log("== Angka patokan Excel v2 (tutup buku September 2026) ==");
-const R = compute(legacyEngineInput());
+// Data dibaca langsung dari file Excel v2 (skrip migrasi yang sama dengan seed:legacy).
+const X = readExcelV2();
+console.log("== Impor file Excel v2 ==");
+for (const w of X.warnings) console.log(`INFO  ${w}`);
+const mutasiDiffs = compareWithMutasi(X);
+for (const d of mutasiDiffs.slice(0, 10)) console.log(`BEDA  MUTASI ${d}`);
+flag(`Mutasi ${Object.keys(X.mutasi).length} akun × 12 bulan = sheet MUTASI`, mutasiDiffs.length === 0);
+
+console.log("\n== Angka patokan Excel v2 (tutup buku September 2026) ==");
+const R = compute(X.input);
 const B = R.balanceSheet.closing;
 check("Pendapatan bersih Jan–Sep", R.profitLossTotal.netRevenue, 795505902);
 check("Laba kotor Jan–Sep", R.profitLossTotal.grossProfit, 456926368);
@@ -33,11 +41,14 @@ check("Kas bank 30 Sep", B.cashInBank, -2739792);
 check("Kas warung 30 Sep", B.pettyCash, 4108000);
 check("Akumulasi penyusutan 30 Sep", -B.accumulatedDepreciation, 2564119);
 check("Omzet bersih per hari buka", R.netRevenuePerOpenDay, 3179317);
-for (const c of R.checks) flag(`Cek: ${c.label}`, c.ok);
+for (const c of R.checks.filter((c) => c.level !== "warn")) flag(`Cek: ${c.label}`, c.ok);
+const warn = (label: string) => R.checks.find((c) => c.label.startsWith(label))!.diff;
+check("Peringatan: hari omzet perlu cek", warn("Hari omzet"), 12);
+check("Peringatan: estimasi PBJT kurang bayar", warn("Estimasi PBJT"), 59326181);
 
 console.log("\n== Skenario: tutup buku Oktober & November dengan angka Parang-ops ==");
 // Angka contoh, bukan data asli Parang-ops.
-const s: EngineInput = legacyEngineInput();
+const s: EngineInput = readExcelV2().input;
 s.settings.closedMonth = 11;
 s.ops = {
   10: { stockValue: 12500000, purchasesTotal: 17200000, salesTotal: 33100000 },
@@ -51,7 +62,7 @@ check("Penyesuaian Nov (Cr Inventori)", inv.find((j) => j.month === 11 && j.cred
 check("Laba bersih Jan–Sep tidak berubah", R2.profitLoss.slice(1, 10).reduce((a, p) => a + p.netProfit, 0), -54996702);
 check("Pembelian bahan Okt menurut jurnal Keuangan", R2.opsCheck[10].financePurchases, 16798420);
 flag("Tanda selisih pembelian: Okt dalam toleransi, Nov melewati", !R2.opsCheck[10].purchaseFlag && R2.opsCheck[11].purchaseFlag);
-for (const c of R2.checks) flag(`Cek: ${c.label}`, c.ok);
+for (const c of R2.checks.filter((c) => c.level !== "warn")) flag(`Cek: ${c.label}`, c.ok);
 
 console.log(fail ? `\n${fail} angka tidak cocok.` : "\nSemua angka cocok dengan Excel v2, dan skenario Parang-ops lolos.");
 process.exit(fail ? 1 : 0);

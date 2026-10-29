@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { generalLedger } from "../engine/engine";
 import { computeLedger } from "../services/ledgerService";
+import { latestEventNotes } from "../services/masterDataService";
+import * as notes from "../services/notesService";
 import { serializeSettings } from "../services/settingsService";
+import prisma from "../prismaClient";
 import { badRequest } from "../utils/httpError";
 
 // Semua laporan hanya-baca, dihitung dari mesin (src/engine). Bulan > closedMonth
@@ -111,7 +114,13 @@ export async function getGeneralLedger(req: Request, res: Response) {
 
 export async function getEvents(_req: Request, res: Response) {
   const { result: R } = await computeLedger();
-  res.json({ year: R.year, closedMonth: R.closedMonth, events: R.events });
+  const [noteByName, ids] = await Promise.all([latestEventNotes(), prisma.event.findMany({ select: { id: true, name: true } })]);
+  const idByName = new Map(ids.map((e) => [e.name, e.id]));
+  res.json({
+    year: R.year,
+    closedMonth: R.closedMonth,
+    events: R.events.map((e) => ({ ...e, id: idByName.get(e.name) ?? null, note: noteByName[e.name] ?? "" })),
+  });
 }
 
 /** Rekap omzet termasuk bulan berjalan (Logika 11). */
@@ -142,4 +151,14 @@ export async function getSalesRecap(_req: Request, res: Response) {
 export async function getTax(_req: Request, res: Response) {
   const { result: R } = await computeLedger();
   res.json({ year: R.year, closedMonth: R.closedMonth, months: R.tax.slice(1, Math.min(12, R.closedMonth + 1) + 1) });
+}
+
+/** CALK (sheet CALK): teks per bagian dengan angka terisi otomatis. */
+export async function getNotes(_req: Request, res: Response) {
+  res.json(await notes.getNotes());
+}
+
+export async function putNotes(req: Request, res: Response) {
+  await notes.saveNotes(req.user!, req.body?.sections ?? null);
+  res.json(await notes.getNotes());
 }

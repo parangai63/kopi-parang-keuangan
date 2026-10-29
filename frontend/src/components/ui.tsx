@@ -93,16 +93,21 @@ export function Kpi({ label, value, sub, tone }: { label: string; value: string;
   );
 }
 
-export function CheckList({ checks }: { checks: { label: string; ok: boolean; diff?: number }[] }) {
+/** Cek kesehatan data: ✓ hijau, ! merah (salah hitung), ⚠ kuning (peringatan yang perlu ditindaklanjuti). */
+export function CheckList({ checks }: { checks: { label: string; ok: boolean; diff?: number; level?: "warn"; note?: string }[] }) {
   return (
     <ul className="checks">
-      {checks.map((c) => (
-        <li key={c.label}>
-          <span className={`dot ${c.ok ? "ok" : "bad"}`}>{c.ok ? "✓" : "!"}</span>
-          {c.label}
-          {!c.ok && c.diff !== undefined && <span className="neg"> selisih {c.diff.toLocaleString("id-ID")}</span>}
-        </li>
-      ))}
+      {checks.map((c) => {
+        const tone = c.ok ? "ok" : c.level === "warn" ? "warn" : "bad";
+        return (
+          <li key={c.label}>
+            <span className={`dot ${tone}`}>{c.ok ? "✓" : c.level === "warn" ? "⚠" : "!"}</span>
+            {c.label}
+            {!c.ok && c.level === "warn" && c.note && <span className="warn-text"> {c.note}</span>}
+            {!c.ok && c.level !== "warn" && c.diff !== undefined && <span className="neg"> selisih {c.diff.toLocaleString("id-ID")}</span>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

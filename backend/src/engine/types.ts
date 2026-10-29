@@ -282,6 +282,9 @@ export interface HealthCheck {
   label: string;
   ok: boolean;
   diff: number;
+  /** "warn" = peringatan (⚠), bukan kesalahan hitung; tidak ikut syarat "semua hijau". */
+  level?: "warn";
+  note?: string;
 }
 
 export interface EngineResult {

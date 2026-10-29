@@ -64,7 +64,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (p: PageId) 
                   })}
                 </div>
               </Panel>
-              <Panel title="Cek kesehatan data" hint="Harus semua hijau sebelum laporan dibagikan.">
+              <Panel title="Cek kesehatan data" hint="Tanda merah harus nol sebelum laporan dibagikan; tanda kuning perlu ditindaklanjuti.">
                 <CheckList checks={d.checks} />
                 {d.running && (
                   <p className="note" style={{ marginTop: 14 }}>

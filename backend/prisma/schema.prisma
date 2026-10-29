@@ -171,6 +171,21 @@ model EventNote {
   @@map("event_notes")
 }
 
+/// Teks CALK per tahun buku (sheet CALK). Body boleh memuat {placeholder} yang diisi angka laporan.
+/// Bila belum ada baris untuk tahun itu, aplikasi memakai template bawaan (notesService.DEFAULT_SECTIONS).
+model ReportNote {
+  id          Int      @id @default(autoincrement())
+  fiscalYear  Int      @map("fiscal_year")
+  sortOrder   Int      @map("sort_order")
+  title       String
+  body        String
+  updatedById Int?     @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([fiscalYear, sortOrder])
+  @@map("report_notes")
+}
+
 model JournalEntry {
   id          Int         @id @default(autoincrement())
   /// JU-0001 untuk UMUM; AUTO-<closingId>-NN untuk jurnal sistem yang dibekukan saat tutup buku.

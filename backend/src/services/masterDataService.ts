@@ -73,7 +73,17 @@ function validateAccount(i: AccountInput, partial: boolean): Prisma.AccountUpdat
   return data;
 }
 
+/** Laba Rugi & Neraca menyusun pos dari akun tertentu (lihat ACC di engine.ts); hanya beban usaha 61xx yang
+ * otomatis ikut tampil di Laba Rugi. Akun kelompok lain akan hilang dari laporan dan membuat neraca tidak seimbang. */
+function assertSupportedNewAccount(i: AccountInput) {
+  if (i.group !== "BEBAN" || !/^61\d{2}$/.test(i.code?.trim() ?? "")) {
+    throw badRequest("Akun baru saat ini hanya bisa berupa beban usaha dengan kode 61xx (mis. 6112), supaya ikut tampil di Laba Rugi.");
+  }
+  if (i.normalSide !== "D") throw badRequest("Akun beban bersaldo normal D.");
+}
+
 export async function createAccount(user: SessionUser, i: AccountInput) {
+  assertSupportedNewAccount(i);
   const data = validateAccount(i, false) as Prisma.AccountCreateInput;
   const row = await prisma.account.create({ data });
   await logAudit(prisma, { userId: user.id, tableName: "accounts", recordId: row.id, action: "CREATE", after: row });
@@ -96,6 +106,36 @@ export async function updateAccount(user: SessionUser, id: number, i: AccountInp
   const row = await prisma.account.update({ where: { id }, data });
   await logAudit(prisma, { userId: user.id, tableName: "accounts", recordId: id, action: "UPDATE", before, after: row });
   return id;
+}
+
+// ---------- rincian saldo awal per pihak (sheet AKUN, bawah) ----------
+export async function listOpeningDetails() {
+  const rows = await prisma.openingBalanceDetail.findMany({
+    include: { party: { select: { name: true } } },
+    orderBy: [{ accountId: "asc" }, { id: "asc" }],
+  });
+  return rows.map((r) => ({ id: r.id, accountId: r.accountId, partyId: r.partyId, partyName: r.party.name, amount: toNum0(r.amount) }));
+}
+
+/** Ganti seluruh rincian satu akun. Jumlah rincian tidak dipaksa sama dengan saldo awal akun — selisihnya ditampilkan di UI. */
+export async function replaceOpeningDetails(user: SessionUser, accountId: number, rows: { partyId?: unknown; amount?: unknown }[]) {
+  const account = await prisma.account.findUnique({ where: { id: accountId } });
+  if (!account) throw notFound("Akun tidak ditemukan.");
+  if (!Array.isArray(rows)) throw badRequest("Rincian harus berupa daftar.");
+  const data = rows.map((r) => {
+    const partyId = Number(r.partyId);
+    if (!Number.isInteger(partyId) || partyId <= 0) throw badRequest("Pilih pihak untuk setiap baris rincian.");
+    return { accountId, partyId, amount: parseAmount(r.amount, "Nominal rincian", { positive: true })! };
+  });
+  if (new Set(data.map((d) => d.partyId)).size !== data.length) throw badRequest("Satu pihak hanya boleh muncul sekali per akun.");
+  const before = await prisma.openingBalanceDetail.findMany({ where: { accountId } });
+  await prisma.$transaction(async (tx) => {
+    await tx.openingBalanceDetail.deleteMany({ where: { accountId } });
+    if (data.length) await tx.openingBalanceDetail.createMany({ data });
+    const after = await tx.openingBalanceDetail.findMany({ where: { accountId } });
+    await logAudit(tx, { userId: user.id, tableName: "opening_balance_details", recordId: accountId, action: "UPDATE", before, after });
+  });
+  return accountId;
 }
 
 // ---------- pihak ----------
@@ -144,6 +184,21 @@ export async function listEvents() {
   return rows.map((e) => ({
     id: e.id, name: e.name, startDate: e.startDate ? toISODate(e.startDate) : null, notes: e.notes,
   }));
+}
+
+/** Keterangan terakhir per event (tabel event_notes menyimpan riwayatnya), dipakai di Analisis Event. */
+export async function latestEventNotes(): Promise<Record<string, string>> {
+  const rows = await prisma.eventNote.findMany({ orderBy: { id: "asc" }, include: { event: { select: { name: true } } } });
+  return Object.fromEntries(rows.map((r) => [r.event.name, r.note]));
+}
+
+export async function addEventNote(user: SessionUser, eventId: number, note: unknown) {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) throw notFound("Event tidak ditemukan.");
+  const text = typeof note === "string" ? note.trim() : "";
+  const row = await prisma.eventNote.create({ data: { eventId, note: text } });
+  await logAudit(prisma, { userId: user.id, tableName: "event_notes", recordId: row.id, action: "CREATE", after: row });
+  return row.id;
 }
 
 export async function createEvent(user: SessionUser, i: { name?: string; startDate?: string | null; notes?: string | null }) {

@@ -22,7 +22,7 @@ Tiga angka bulanan dari Parang-ops diketik manual saat tutup buku.
 | `frontend/` | UI React + Tailwind |
 | `.agents/` | Pedoman untuk agen AI: business logic, tech stack backend & frontend |
 | `docs/SPESIFIKASI.md` | Spesifikasi lengkap (sumber kebenaran) |
-| `prototype/` | Prototipe HTML lama + `data.js` (data asli Jan – 11 Okt 2026, dipakai `seed:legacy`) |
+| `prototype/` | Prototipe HTML lama + `data.js` (salinan data asli; `seed:legacy` kini membaca file Excel v2 langsung) |
 | `scripts/check-patokan.js` | Uji angka patokan untuk mesin prototipe (`prototype/engine.js`) |
 | `original/` | File artifact asli satu halaman, untuk referensi |
 
