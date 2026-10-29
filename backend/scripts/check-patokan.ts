@@ -4,7 +4,7 @@
 // Jalankan: cd backend && npm run check:patokan
 import { compute } from "../src/engine/engine";
 import type { EngineInput } from "../src/engine/types";
-import { legacyEngineInput } from "../prisma/legacyData";
+import { compareWithMutasi, readExcelV2 } from "../prisma/excelData";
 
 const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 let fail = 0;
@@ -18,8 +18,16 @@ const flag = (label: string, ok: boolean) => {
   console.log(`${ok ? "OK  " : "BEDA"}  ${label}`);
 };
 
-console.log("== Angka patokan Excel v2 (tutup buku September 2026) ==");
-const R = compute(legacyEngineInput());
+// Data dibaca langsung dari file Excel v2 (skrip migrasi yang sama dengan seed:legacy).
+const X = readExcelV2();
+console.log("== Impor file Excel v2 ==");
+for (const w of X.warnings) console.log(`INFO  ${w}`);
+const mutasiDiffs = compareWithMutasi(X);
+for (const d of mutasiDiffs.slice(0, 10)) console.log(`BEDA  MUTASI ${d}`);
+flag(`Mutasi ${Object.keys(X.mutasi).length} akun × 12 bulan = sheet MUTASI`, mutasiDiffs.length === 0);
+
+console.log("\n== Angka patokan Excel v2 (tutup buku September 2026) ==");
+const R = compute(X.input);
 const B = R.balanceSheet.closing;
 check("Pendapatan bersih Jan–Sep", R.profitLossTotal.netRevenue, 795505902);
 check("Laba kotor Jan–Sep", R.profitLossTotal.grossProfit, 456926368);
@@ -40,7 +48,7 @@ check("Peringatan: estimasi PBJT kurang bayar", warn("Estimasi PBJT"), 59326181)
 
 console.log("\n== Skenario: tutup buku Oktober & November dengan angka Parang-ops ==");
 // Angka contoh, bukan data asli Parang-ops.
-const s: EngineInput = legacyEngineInput();
+const s: EngineInput = readExcelV2().input;
 s.settings.closedMonth = 11;
 s.ops = {
   10: { stockValue: 12500000, purchasesTotal: 17200000, salesTotal: 33100000 },

@@ -187,8 +187,11 @@ export function compute(input: EngineInput): EngineResult {
   };
 
   // ---------- jurnal otomatis (Logika 2) ----------
+  // Sama seperti sheet JURNAL Excel v2: dibuat untuk semua bulan yang punya data (juga bulan berjalan),
+  // laporan resmi tetap dipotong di closedMonth. Penyusutan bulan > closedMonth = 0 (jadwal aset),
+  // estimasi PBJT hanya untuk bulan yang sudah ditutup (sheet PAJAK juga 0 sesudahnya).
   const auto: LedgerEntry[] = [];
-  for (let m = 1; m <= BLN; m++) {
+  for (let m = 1; m <= 12; m++) {
     const d = lastDayOfMonth(Y, m);
     const o = months[m];
     const nm = BULAN[m - 1];
@@ -215,7 +218,7 @@ export function compute(input: EngineInput): EngineResult {
     push(ACC.COMPLIMENT, ACC.PIUTANG_CAFE, o.compliment, `Compliment bulan ${nm}`, "daily_sales", `${ym}:compliment`);
     push(ACC.PRIVE, ACC.PIUTANG_CAFE, o.ownerBill, `Bill owner bulan ${nm}`, "daily_sales", `${ym}:owner_bill`, "OTOMATIS", "Bill Owner");
     push(ACC.PENYUSUTAN, ACC.AKUM_PENYUSUTAN, depreciation(m), `Penyusutan peralatan bulan ${nm}`, "depreciation", ym);
-    if (settings.accruePbjt) {
+    if (settings.accruePbjt && m <= BLN) {
       push(ACC.PAJAK_RESTORAN, ACC.UTANG_PBJT, Math.max(0, pbjt(m).underpaid), `Estimasi PBJT kurang bayar bulan ${nm}`, "pbjt", ym, "PENYESUAIAN");
     }
   }

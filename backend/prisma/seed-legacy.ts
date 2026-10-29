@@ -1,15 +1,18 @@
-// Seed DATA ASLI: memindahkan data keuangan asli Excel v2 (via prototype/data.js) ke database.
+// Seed DATA ASLI: memindahkan data keuangan asli dari file Excel v2 langsung ke database (skrip migrasi).
 // Untuk data dummy pakai `npm run seed` (seed.ts). Jalankan ini hanya di database yang aman untuk data asli.
 //
-//   npm run seed:legacy               # menolak jika database sudah berisi
-//   SEED_RESET=1 npm run seed:legacy  # HAPUS semua data lalu isi ulang (hanya dev/staging!)
+//   npm run seed:legacy                         # file default: KOPI_PARANG_LAPORAN_KEUANGAN_2026_v2.xlsx di root repo
+//   npm run seed:legacy -- path/ke/file.xlsx    # file lain
+//   SEED_RESET=1 npm run seed:legacy            # HAPUS semua data lalu isi ulang (hanya dev/staging!)
 //
+// Sebelum menulis ke database, hasil impor dihitung mesin dan dicocokkan dengan sheet MUTASI
+// (saldo tiap akun per bulan). Jika ada selisih, seed dibatalkan.
 // Hanya jurnal UMUM yang diimpor. Jurnal OTOMATIS/PENYESUAIAN dibuat ulang oleh mesin.
 // PIN owner/admin/kasir dibuat ACAK dan ditampilkan sekali di akhir — catat, lalu ganti di menu Pengguna.
 import "dotenv/config";
 import { randomInt } from "crypto";
 import { PrismaClient, PartyType } from "@prisma/client";
-import { legacyEngineInput, readRawData, LEGACY_ACCOUNT_META, LEGACY_BON_PARTY, LEGACY_EVENT_NOTES, LEGACY_OPENING_DETAILS } from "./legacyData";
+import { compareWithMutasi, LEGACY_BON_PARTY, readExcelV2 } from "./excelData";
 import { createUsers, wipe } from "./seedShared";
 
 const prisma = new PrismaClient();
@@ -17,21 +20,31 @@ const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const big = (n: number | null) => (n == null ? null : BigInt(n));
 
 async function main() {
+  const x = readExcelV2(process.argv[2]);
+  const input = x.input;
+  const S = input.settings;
+  for (const w of x.warnings) console.log(`Perhatian: ${w}`);
+  const diffs = compareWithMutasi(x);
+  if (diffs.length) {
+    console.error(`Hasil impor tidak cocok dengan sheet MUTASI (${diffs.length} selisih). Seed dibatalkan:`);
+    for (const d of diffs.slice(0, 20)) console.error(`  ${d}`);
+    process.exit(1);
+  }
+  console.log(`Cocok dengan sheet MUTASI: ${Object.keys(x.mutasi).length} akun × 12 bulan.`);
+
   if (process.env.SEED_RESET === "1") await wipe(prisma);
   if ((await prisma.account.count()) > 0) {
     console.log("Database sudah berisi data. Seed dibatalkan (pakai SEED_RESET=1 untuk mengisi ulang di dev).");
     return;
   }
 
-  const raw = readRawData();
-  const input = legacyEngineInput();
-  const S = input.settings;
-
   // ---------- pengaturan ----------
   await prisma.setting.create({
     data: {
       fiscalYear: S.year, closedMonth: S.closedMonth, pbjtRate: S.pbjtRate, priceIncludesTax: S.priceIncludesTax,
-      accruePbjt: S.accruePbjt, revenueTarget: BigInt(raw.settings.target), cashDiffThreshold: BigInt(S.cashDiffThreshold),
+      accruePbjt: S.accruePbjt, revenueTarget: BigInt(x.revenueTarget), cashDiffThreshold: BigInt(S.cashDiffThreshold),
+      foodCostLimit: x.limits.foodCost, payrollLimit: x.limits.payroll, occupancyLimit: x.limits.occupancy,
+      primeCostLimit: x.limits.primeCost, netMarginTarget: x.limits.netMargin,
       opsPurchaseTolerancePct: S.opsPurchaseTolerancePct, opsSalesTolerancePct: S.opsSalesTolerancePct,
     },
   });
@@ -41,14 +54,14 @@ async function main() {
     data: input.accounts.map((a) => ({
       code: a.code, name: a.name, group: a.group, normalSide: a.normal, cashCategory: a.cashCategory,
       cashFlowLine: a.cashFlowLine, openingBalance: BigInt(a.openingBalance),
-      reportLine: LEGACY_ACCOUNT_META[a.code]?.reportLine ?? null,
-      description: LEGACY_ACCOUNT_META[a.code]?.description ?? null,
+      reportLine: x.accountMeta[a.code]?.reportLine ?? null,
+      description: x.accountMeta[a.code]?.description ?? null,
     })),
   });
   const accountId = new Map((await prisma.account.findMany()).map((a) => [a.name, a.id]));
 
   // ---------- pihak & event (dari teks bebas di Excel) ----------
-  const partyNames = [...new Set([...input.journal.map((j) => j.party), ...LEGACY_OPENING_DETAILS.map((d) => d.party)].filter(Boolean))].sort();
+  const partyNames = [...new Set([...input.journal.map((j) => j.party), ...x.openingDetails.map((d) => d.party)].filter(Boolean))].sort();
   await prisma.party.createMany({
     data: [
       ...partyNames.map((name) => ({ name, type: PartyType.LAINNYA })),
@@ -57,7 +70,7 @@ async function main() {
   });
   const partyId = new Map((await prisma.party.findMany()).map((p) => [p.name, p.id]));
   await prisma.openingBalanceDetail.createMany({
-    data: LEGACY_OPENING_DETAILS.map((d) => ({ accountId: accountId.get(d.account)!, partyId: partyId.get(d.party)!, amount: BigInt(d.amount) })),
+    data: x.openingDetails.map((d) => ({ accountId: accountId.get(d.account)!, partyId: partyId.get(d.party)!, amount: BigInt(d.amount) })),
   });
 
   const eventFirst = new Map<string, string>();
@@ -67,7 +80,7 @@ async function main() {
   await prisma.event.createMany({ data: [...eventFirst].map(([name, first]) => ({ name, startDate: d(first) })) });
   const eventId = new Map((await prisma.event.findMany()).map((e) => [e.name, e.id]));
   await prisma.eventNote.createMany({
-    data: Object.entries(LEGACY_EVENT_NOTES).filter(([n]) => eventId.has(n)).map(([n, note]) => ({ eventId: eventId.get(n)!, note })),
+    data: Object.entries(x.eventNotes).filter(([n]) => eventId.has(n)).map(([n, note]) => ({ eventId: eventId.get(n)!, note })),
   });
 
   // ---------- jurnal UMUM ----------

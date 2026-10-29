@@ -1,5 +1,21 @@
 # Perubahan
 
+## 29 Oktober 2026 (malam): skrip migrasi membaca file Excel v2 langsung
+
+- `backend/prisma/excelData.ts` membaca `KOPI_PARANG_LAPORAN_KEUANGAN_2026_v2.xlsx` langsung (kolom input saja):
+  PENGATURAN (termasuk target & batas rasio), AKUN (+ pos laporan, keterangan, rincian saldo awal per pihak),
+  OMZET HARIAN, JURNAL (hanya UMUM), ASET TETAP, PAJAK (omzet dilaporkan & SSPD), ANALISIS EVENT (keterangan).
+  Menggantikan `legacyData.ts` (jembatan lewat `prototype/data.js`, dihapus).
+- `seed:legacy` menerima path file (`npm run seed:legacy -- file.xlsx`), mencetak hal yang perlu dibereskan
+  manual, dan **membatalkan seed** bila hasil hitung tidak sama dengan sheet MUTASI.
+- `check:patokan` kini juga membaca Excel dan menguji 35 akun × 12 bulan terhadap sheet MUTASI: semua cocok.
+- Mesin: jurnal otomatis dari Omzet Harian dibuat untuk semua bulan berdata (juga bulan berjalan), sama seperti
+  sheet JURNAL Excel dan spesifikasi Logika 2. Penyusutan bulan berjalan tetap 0, estimasi PBJT hanya bulan
+  yang sudah ditutup. Laporan resmi tidak berubah (dipotong di bulan tutup buku).
+- Dibanding `data.js`, impor Excel lebih setia: sel compliment/bill owner yang kosong tetap kosong (bukan 0),
+  spasi di keterangan jurnal tidak hilang, dan 81 tanggal tanpa data tidak ikut dibuat.
+- `xlsx@0.18.5` ditambahkan sebagai devDependency backend (versi sama dengan frontend).
+
 ## 29 Oktober 2026 (malam): data Excel v2 yang belum terbawa
 
 Prinsip: data/nilai dan rumus mengikuti Excel v2; hal yang menunggu keputusan owner (PPh, MDR, rekonsiliasi
