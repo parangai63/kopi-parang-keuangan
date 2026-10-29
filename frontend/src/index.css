@@ -100,6 +100,8 @@ main { min-width: 0; padding-inline: 28px; padding-block: 0 48px; }
 .dot { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11px; flex: none; font-weight: 700; }
 .dot.ok { background: var(--good-soft); color: var(--good); }
 .dot.bad { background: var(--crit-soft); color: var(--crit); }
+.dot.warn { background: var(--warn-soft); color: var(--warn); }
+.warn-text { color: var(--warn); }
 
 .pill { display: inline-block; font-size: 11.5px; font-weight: 500; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
 .pill.ok { background: var(--good-soft); color: var(--good); }
@@ -144,7 +146,7 @@ form.f { display: flex; flex-direction: column; gap: 14px; }
 fieldset { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 legend { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; padding: 0; }
 label.fld { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); min-width: 0; }
-.fld input, .fld select { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; color: var(--ink); font-size: 14px; width: 100%; min-width: 0; }
+.fld input, .fld select, .fld textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; color: var(--ink); font-size: 14px; width: 100%; min-width: 0; }
 .fld input:disabled, .fld select:disabled { background: var(--sunk); color: var(--muted); }
 .fld input.money { text-align: right; font-variant-numeric: tabular-nums; }
 .wide { grid-column: 1 / -1; }
@@ -262,6 +264,10 @@ a { color: var(--accent); }
 
 .rep-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .rep-bar .rep-head { margin: 0; }
+.fld textarea { resize: vertical; line-height: 1.5; }
+.calk { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+.calk b { font-size: 13px; letter-spacing: .03em; }
+.calk p { margin: 4px 0 0; line-height: 1.55; }
 .pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .t td.act { width: 1%; white-space: nowrap; text-align: right; }
 .t td.empty-row { text-align: center; color: var(--muted); padding-block: 18px; }

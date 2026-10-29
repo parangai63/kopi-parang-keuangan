@@ -9,7 +9,7 @@
 import "dotenv/config";
 import { randomInt } from "crypto";
 import { PrismaClient, PartyType } from "@prisma/client";
-import { legacyEngineInput, readRawData, LEGACY_BON_PARTY } from "./legacyData";
+import { legacyEngineInput, readRawData, LEGACY_ACCOUNT_META, LEGACY_BON_PARTY, LEGACY_EVENT_NOTES, LEGACY_OPENING_DETAILS } from "./legacyData";
 import { createUsers, wipe } from "./seedShared";
 
 const prisma = new PrismaClient();
@@ -41,13 +41,14 @@ async function main() {
     data: input.accounts.map((a) => ({
       code: a.code, name: a.name, group: a.group, normalSide: a.normal, cashCategory: a.cashCategory,
       cashFlowLine: a.cashFlowLine, openingBalance: BigInt(a.openingBalance),
-      description: a.code === "3101" ? "Saldo awal dihitung otomatis dari aset − liabilitas per 1 Januari." : null,
+      reportLine: LEGACY_ACCOUNT_META[a.code]?.reportLine ?? null,
+      description: LEGACY_ACCOUNT_META[a.code]?.description ?? null,
     })),
   });
   const accountId = new Map((await prisma.account.findMany()).map((a) => [a.name, a.id]));
 
   // ---------- pihak & event (dari teks bebas di Excel) ----------
-  const partyNames = [...new Set(input.journal.map((j) => j.party).filter(Boolean))].sort();
+  const partyNames = [...new Set([...input.journal.map((j) => j.party), ...LEGACY_OPENING_DETAILS.map((d) => d.party)].filter(Boolean))].sort();
   await prisma.party.createMany({
     data: [
       ...partyNames.map((name) => ({ name, type: PartyType.LAINNYA })),
@@ -55,6 +56,9 @@ async function main() {
     ],
   });
   const partyId = new Map((await prisma.party.findMany()).map((p) => [p.name, p.id]));
+  await prisma.openingBalanceDetail.createMany({
+    data: LEGACY_OPENING_DETAILS.map((d) => ({ accountId: accountId.get(d.account)!, partyId: partyId.get(d.party)!, amount: BigInt(d.amount) })),
+  });
 
   const eventFirst = new Map<string, string>();
   for (const j of input.journal) {
@@ -62,6 +66,9 @@ async function main() {
   }
   await prisma.event.createMany({ data: [...eventFirst].map(([name, first]) => ({ name, startDate: d(first) })) });
   const eventId = new Map((await prisma.event.findMany()).map((e) => [e.name, e.id]));
+  await prisma.eventNote.createMany({
+    data: Object.entries(LEGACY_EVENT_NOTES).filter(([n]) => eventId.has(n)).map(([n, note]) => ({ eventId: eventId.get(n)!, note })),
+  });
 
   // ---------- jurnal UMUM ----------
   await prisma.journalEntry.createMany({

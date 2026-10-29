@@ -68,8 +68,13 @@ Tutup buku September 2026 (data asli Jan–Sep):
 
 Setiap perubahan di `backend/src/engine/` WAJIB diikuti `cd backend && npm run check:patokan` sampai
 keluar "Semua angka cocok". Selisih 1 rupiah pun harus dicari penyebabnya (biasanya pembulatan).
-4 cek kesehatan (neraca seimbang, neraca saldo seimbang, kas arus kas = kas neraca, ekuitas perubahan =
-ekuitas neraca) harus selalu hijau.
+5 cek kesehatan (neraca seimbang, neraca saldo seimbang, kas arus kas = kas neraca, ekuitas perubahan =
+ekuitas neraca, daftar aset tetap = akun Peralatan & Akumulasi) harus selalu hijau. Cek ber-`level: "warn"`
+(hari omzet perlu cek, aset pra-tahun buku belum diinventarisasi, estimasi PBJT kurang bayar) adalah peringatan
+seperti di sheet DASHBOARD Excel v2, bukan kesalahan hitung.
+
+Akun baru dari UI dibatasi beban usaha kode 61xx: Laba Rugi & Neraca menyusun pos dari akun bernama tertentu
+(`ACC` di engine.ts), jadi akun kelompok lain akan hilang dari laporan dan membuat neraca tidak seimbang.
 
 ## 4. Constraint data & proteksi sistem
 

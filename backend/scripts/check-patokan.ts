@@ -33,7 +33,10 @@ check("Kas bank 30 Sep", B.cashInBank, -2739792);
 check("Kas warung 30 Sep", B.pettyCash, 4108000);
 check("Akumulasi penyusutan 30 Sep", -B.accumulatedDepreciation, 2564119);
 check("Omzet bersih per hari buka", R.netRevenuePerOpenDay, 3179317);
-for (const c of R.checks) flag(`Cek: ${c.label}`, c.ok);
+for (const c of R.checks.filter((c) => c.level !== "warn")) flag(`Cek: ${c.label}`, c.ok);
+const warn = (label: string) => R.checks.find((c) => c.label.startsWith(label))!.diff;
+check("Peringatan: hari omzet perlu cek", warn("Hari omzet"), 12);
+check("Peringatan: estimasi PBJT kurang bayar", warn("Estimasi PBJT"), 59326181);
 
 console.log("\n== Skenario: tutup buku Oktober & November dengan angka Parang-ops ==");
 // Angka contoh, bukan data asli Parang-ops.
@@ -51,7 +54,7 @@ check("Penyesuaian Nov (Cr Inventori)", inv.find((j) => j.month === 11 && j.cred
 check("Laba bersih Jan–Sep tidak berubah", R2.profitLoss.slice(1, 10).reduce((a, p) => a + p.netProfit, 0), -54996702);
 check("Pembelian bahan Okt menurut jurnal Keuangan", R2.opsCheck[10].financePurchases, 16798420);
 flag("Tanda selisih pembelian: Okt dalam toleransi, Nov melewati", !R2.opsCheck[10].purchaseFlag && R2.opsCheck[11].purchaseFlag);
-for (const c of R2.checks) flag(`Cek: ${c.label}`, c.ok);
+for (const c of R2.checks.filter((c) => c.level !== "warn")) flag(`Cek: ${c.label}`, c.ok);
 
 console.log(fail ? `\n${fail} angka tidak cocok.` : "\nSemua angka cocok dengan Excel v2, dan skenario Parang-ops lolos.");
 process.exit(fail ? 1 : 0);

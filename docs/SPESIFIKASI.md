@@ -147,6 +147,7 @@ Semua nominal disimpan sebagai bilangan bulat Rupiah (`BIGINT`), bukan desimal a
 | `tax_filings` | year, month, reported\_revenue, pbjt\_paid, sspd\_no, filed\_on | Input di wizard Tutup Buku: omzet yang dilaporkan ke Bapenda dan PBJT yang dibayar. |
 | `ops_monthly_figures` | year, month, stock\_value, purchases\_total, sales\_total, entered\_by, entered\_at, note | Tiga angka dari Parang-ops, diinput manual saat tutup buku. `stock_value` dan `purchases_total` wajib, `sales_total` boleh kosong. |
 | `event_notes` | event\_id, note | Keterangan manual di halaman Analisis Event. |
+| `report_notes` | fiscal\_year, sort\_order, title, body | Teks CALK per tahun buku; `{placeholder}` di body diisi angka laporan. Kosong = template bawaan (teks sheet CALK Excel v2). |
 | `period_closings` | year, month, closed\_by, closed\_at, reopened\_by, reopened\_at | Riwayat tutup buku. |
 | `users` | name, email, role (owner, admin, kasir), password\_hash, totp\_secret, pin\_hash, is\_active | Owner/admin: email + kata sandi + 2FA. Kasir: PIN. Tidak berbagi tabel pengguna dengan Parang-ops. |
 | `audit_logs` | user\_id, table\_name, record\_id, action, before (JSON), after (JSON), at | Semua perubahan pada tabel di atas. |
@@ -270,7 +271,8 @@ Akun pendapatan dibaca sebagai −mutasi, akun beban sebagai +mutasi.
 - Pencapaian target = omzet bersih ÷ target; pertumbuhan = omzet bersih bulan ini ÷ bulan lalu − 1.
 - Hari perlu dicek = jumlah hari buka yang statusnya bukan "OK".
 - Dashboard memakai angka Laba Rugi dan Rekap Omzet s.d. closed\_month. Struktur biaya: HPP, gaji, sewa, marketing, tagihan bulanan, beban lainnya, sisa laba.
-- Cek kesehatan data (tampil hijau/merah): neraca seimbang, neraca saldo seimbang, kas di arus kas = kas di neraca, ekuitas di perubahan ekuitas = ekuitas di neraca.
+- Cek kesehatan data (tampil hijau/merah): neraca seimbang, neraca saldo seimbang, kas di arus kas = kas di neraca, ekuitas di perubahan ekuitas = ekuitas di neraca, daftar aset tetap = saldo akun Peralatan dan Akumulasi Penyusutan.
+- Peringatan (tampil kuning, seperti sheet DASHBOARD Excel v2): jumlah hari omzet yang belum direalisasi atau perlu dicek, aset tetap sebelum tahun buku belum diinventarisasi, estimasi PBJT kurang bayar s.d. bulan tutup buku.
 
 ### 12. Cek dengan Parang-ops (per bulan)
 

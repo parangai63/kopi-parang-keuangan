@@ -3,8 +3,9 @@ import { masterApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { BULAN, num } from "../utils/format";
-import { ErrorBox, Field, Loading, PageHeader, Panel, Pill } from "../components/ui";
+import { BULAN } from "../utils/format";
+import { ErrorBox, Field, Loading, PageHeader, Panel } from "../components/ui";
+import AccountsPanel from "../components/AccountsPanel";
 import MoneyInput from "../components/MoneyInput";
 import type { Settings } from "../types";
 
@@ -19,13 +20,12 @@ const PCT_FIELDS: [keyof Settings, string][] = [
   ["opsSalesTolerancePct", "Toleransi cek omzet Parang-ops"],
 ];
 
-/** Pengaturan (owner ubah, admin lihat) + Daftar Akun & saldo awal. */
+/** Pengaturan (owner ubah, admin lihat) + Daftar Akun & saldo awal (AccountsPanel). */
 export default function SettingsPage() {
   const { user } = useAuth();
   const toast = useToast();
   const canEdit = user?.role === "OWNER";
   const settings = useApi(() => masterApi.settings(), []);
-  const accounts = useApi(() => masterApi.accounts(), []);
   const [s, setS] = useState<Settings | null>(null);
 
   useEffect(() => setS(settings.data), [settings.data]);
@@ -78,31 +78,7 @@ export default function SettingsPage() {
           </Panel>
         )}
 
-        <Panel title="Daftar akun" hint="Akun yang sudah dipakai tidak bisa dihapus, hanya dinonaktifkan. Saldo awal Ekuitas Kopi Parang dihitung otomatis.">
-          {accounts.loading ? <Loading /> : accounts.error || !accounts.data ? <ErrorBox message={accounts.error ?? ""} onRetry={accounts.reload} /> : (
-            <div className="tw">
-              <table className="t">
-                <thead>
-                  <tr><th>Kode</th><th>Nama akun</th><th>Kelompok</th><th>Normal</th><th>Kategori kas</th><th>Baris arus kas</th><th className="r">Saldo awal 1 Jan</th><th /></tr>
-                </thead>
-                <tbody>
-                  {accounts.data.map((a) => (
-                    <tr key={a.id}>
-                      <td className="mono">{a.code}</td>
-                      <td className="acc">{a.name}</td>
-                      <td>{a.group}</td>
-                      <td>{a.normalSide}</td>
-                      <td>{a.cashCategory}</td>
-                      <td>{a.cashFlowLine ?? "—"}</td>
-                      <td className="r">{a.code === "3101" ? <span className="note">otomatis</span> : num(a.openingBalance)}</td>
-                      <td>{!a.isActive && <Pill>nonaktif</Pill>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Panel>
+        <AccountsPanel />
       </div>
     </>
   );

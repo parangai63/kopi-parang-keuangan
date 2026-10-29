@@ -16,14 +16,23 @@ export interface ExportSpec {
   title: string;
   period: string;
   columns: ExportColumn[];
+  /** kunci `__style` (opsional): "h" | "sum" | "grand" → baris dicetak tebal di PDF */
   rows: Record<string, unknown>[];
 }
+
+/** Beberapa laporan dalam satu file: Excel = satu sheet per laporan, PDF = satu halaman baru per laporan. */
+export interface ExportBundle {
+  filename: string;
+  parts: ExportSpec[];
+}
+
+const BOLD_STYLES = ["h", "sum", "grand"];
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 const printed = () =>
   new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date());
 
-export function exportToExcel(spec: ExportSpec) {
+function sheetOf(spec: ExportSpec) {
   const aoa: unknown[][] = [
     ["KOPI PARANG"],
     [spec.title],
@@ -37,13 +46,21 @@ export function exportToExcel(spec: ExportSpec) {
   ws["!cols"] = spec.columns.map((c) => ({
     wch: Math.min(Math.max(c.header.length, ...spec.rows.map((r) => String(r[c.key] ?? "").length)) + 2, 48),
   }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, spec.title.slice(0, 31));
-  XLSX.writeFile(wb, `${spec.filename}-${stamp()}.xlsx`);
+  return ws;
 }
 
-export function exportToPdf(spec: ExportSpec) {
-  const doc = new jsPDF({ orientation: spec.columns.length > 6 ? "landscape" : "portrait" });
+const toBundle = (x: ExportSpec | ExportBundle): ExportBundle => ("parts" in x ? x : { filename: x.filename, parts: [x] });
+
+export function exportToExcel(x: ExportSpec | ExportBundle) {
+  const b = toBundle(x);
+  const wb = XLSX.utils.book_new();
+  for (const spec of b.parts) XLSX.utils.book_append_sheet(wb, sheetOf(spec), spec.title.slice(0, 31));
+  XLSX.writeFile(wb, `${b.filename}-${stamp()}.xlsx`);
+}
+
+const orientationOf = (spec: ExportSpec) => (spec.columns.length > 6 ? "landscape" : "portrait");
+
+function drawPdfPart(doc: jsPDF, spec: ExportSpec) {
   doc.setFontSize(13);
   doc.text("KOPI PARANG", 14, 14);
   doc.setFontSize(11);
@@ -59,6 +76,18 @@ export function exportToPdf(spec: ExportSpec) {
     headStyles: { fillColor: [21, 28, 39] },
     columnStyles: Object.fromEntries(spec.columns.map((c, i) => [i, c.numeric ? { halign: "right" } : {}])),
     margin: { left: 10, right: 10 },
+    didParseCell: (d) => {
+      if (d.section === "body" && BOLD_STYLES.includes(String(spec.rows[d.row.index]?.__style ?? ""))) d.cell.styles.fontStyle = "bold";
+    },
   });
-  doc.save(`${spec.filename}-${stamp()}.pdf`);
+}
+
+export function exportToPdf(x: ExportSpec | ExportBundle) {
+  const b = toBundle(x);
+  const doc = new jsPDF({ orientation: orientationOf(b.parts[0]) });
+  b.parts.forEach((spec, i) => {
+    if (i > 0) doc.addPage("a4", orientationOf(spec));
+    drawPdfPart(doc, spec);
+  });
+  doc.save(`${b.filename}-${stamp()}.pdf`);
 }

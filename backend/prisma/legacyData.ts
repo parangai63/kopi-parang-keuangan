@@ -39,6 +39,60 @@ const LEGACY_REPORTED_REVENUE: Record<number, number> = {
   1: 20562000, 2: 16640000, 3: 23100000, 4: 20580000, 5: 22570000, 6: 22320000, 7: 20940000, 8: 19951000, 9: 20960000,
 };
 
+/** Rincian saldo awal piutang & utang per pihak (sheet AKUN, bagian bawah). Nama pihak persis seperti di Excel. */
+export const LEGACY_OPENING_DETAILS: { account: string; party: string; amount: number }[] = [
+  { account: "Piutang Usaha Cafe", party: "Yantos", amount: 4000000 },
+  { account: "Piutang Usaha Cafe", party: "BRI Bisnis", amount: 500000 },
+  { account: "Piutang Lainnya", party: "Piutang Pak Munir", amount: 3000000 },
+  { account: "Utang Usaha Jangka Panjang", party: "FM WOOD Order", amount: 1420000 },
+  { account: "Utang Usaha Jangka Panjang", party: "FM Wood Maintenance", amount: 1000000 },
+  { account: "Utang Lainnya", party: "Utang Pak Munir", amount: 3567600 },
+];
+
+/** Kolom "Pos Laporan" dan "Keterangan" per akun (sheet AKUN); tidak ada di prototype/data.js. */
+export const LEGACY_ACCOUNT_META: Record<string, { reportLine: string; description: string | null }> = {
+  "1101": { reportLine: "Kas dan setara kas", description: "Kas besar / brankas" },
+  "1102": { reportLine: "Kas dan setara kas", description: "Rekening bank usaha" },
+  "1103": { reportLine: "Kas dan setara kas", description: "Kas kecil operasional" },
+  "1201": { reportLine: "Piutang usaha", description: "Kliring omzet: omzet tercatat yang belum masuk kas (tunai H+1, settlement EDC)" },
+  "1202": { reportLine: "Piutang usaha", description: "Piutang dari penjualan di luar cafe (event, B2B)" },
+  "1203": { reportLine: "Piutang lain-lain", description: "Bon karyawan, pinjaman pihak lain" },
+  "1301": { reportLine: "Persediaan", description: "Stok bahan baku (hasil stok opname akhir bulan)" },
+  "1302": { reportLine: "Perlengkapan", description: "Perlengkapan belum terpakai" },
+  "1303": { reportLine: "Beban dibayar di muka", description: "Sewa/langganan yang dibayar di depan" },
+  "1501": { reportLine: "Peralatan (harga perolehan)", description: "Lihat sheet ASET TETAP" },
+  "1502": { reportLine: "Akumulasi penyusutan", description: "Akun pengurang aset (kontra)" },
+  "2101": { reportLine: "Utang usaha", description: "Utang ke pemasok / gaji yang belum dibayar" },
+  "2102": { reportLine: "Utang pajak", description: "Estimasi PBJT kurang bayar (akun BARU)" },
+  "2103": { reportLine: "Utang lain-lain", description: "Pinjaman pihak lain (Pak Munir)" },
+  "2201": { reportLine: "Utang jangka panjang", description: "Cicilan FM Wood & grinder — cek jatuh tempo, bila < 12 bulan pindahkan ke jangka pendek" },
+  "3101": { reportLine: "Modal pemilik", description: "Saldo awal = total aset − total liabilitas per 1 Jan" },
+  "3102": { reportLine: "Prive", description: "Pengambilan pemilik (uang, barang, bill owner)" },
+  "4101": { reportLine: "Pendapatan usaha", description: "Omzet bersih cafe" },
+  "4102": { reportLine: "Pendapatan usaha", description: "Tiket event, sponsor, penjualan luar" },
+  "4901": { reportLine: "Potongan pendapatan", description: "PBJT — disajikan sebagai pengurang pendapatan" },
+  "5101": { reportLine: "Beban pokok penjualan", description: null },
+  "5102": { reportLine: "Beban pokok penjualan", description: "Cup, kemasan, dll" },
+  "6101": { reportLine: "Beban usaha", description: null },
+  "6102": { reportLine: "Beban usaha", description: null },
+  "6103": { reportLine: "Beban usaha", description: "Listrik, air, internet, langganan" },
+  "6104": { reportLine: "Beban usaha", description: "Termasuk biaya event" },
+  "6105": { reportLine: "Beban usaha", description: null },
+  "6106": { reportLine: "Beban usaha", description: null },
+  "6107": { reportLine: "Beban usaha", description: null },
+  "6108": { reportLine: "Beban usaha", description: null },
+  "6109": { reportLine: "Beban usaha", description: null },
+  "6110": { reportLine: "Beban usaha", description: null },
+  "6111": { reportLine: "Beban usaha", description: "Otomatis dari sheet ASET TETAP" },
+  "7101": { reportLine: "Pendapatan lain-lain", description: "Bunga bank, lain-lain" },
+  "7201": { reportLine: "Beban lain-lain", description: "Admin bank, denda, lain-lain" },
+};
+
+/** Kolom "Keterangan" sheet ANALISIS EVENT. */
+export const LEGACY_EVENT_NOTES: Record<string, string> = {
+  "Event Maharia": "Biaya talent, orkestra & sound besar; pemasukan tiket jauh di bawah biaya",
+};
+
 export function legacyEngineInput(): EngineInput {
   const D = readRawData();
   return {

@@ -210,7 +210,7 @@ export function taxRows(ms: TaxMonth[]): ReportRow[] {
 }
 
 /** Sheet ANALISIS EVENT: satu baris per tag event + total. Kolom campuran, jadi ditulis sebagai teks. */
-export const EVENT_COLUMNS = ["Mulai", "Transaksi", "Pendapatan", "Biaya", "Laba (rugi)", "Biaya per Rp1"];
+export const EVENT_COLUMNS = ["Mulai", "Transaksi", "Pendapatan", "Biaya", "Laba (rugi)", "Biaya per Rp1", "Keterangan"];
 
 export function eventRows(events: EventResult[]): ReportRow[] {
   const rev = events.reduce((s, e) => s + e.revenue, 0);
@@ -219,11 +219,11 @@ export function eventRows(events: EventResult[]): ReportRow[] {
   return [
     ...events.map((e): ReportRow => ({
       label: e.name,
-      text: [tgl(e.firstDate), num(e.count), num(e.revenue), num(e.cost), acct(e.profit), ratio(e.costPerRevenue)],
+      text: [tgl(e.firstDate), num(e.count), num(e.revenue), num(e.cost), acct(e.profit), ratio(e.costPerRevenue), e.note ?? ""],
     })),
     {
       label: "Total event", style: "grand",
-      text: ["", num(events.reduce((s, e) => s + e.count, 0)), num(rev), num(cost), acct(rev - cost), ratio(rev ? cost / rev : null)],
+      text: ["", num(events.reduce((s, e) => s + e.count, 0)), num(rev), num(cost), acct(rev - cost), ratio(rev ? cost / rev : null), ""],
     },
   ];
 }

@@ -2,7 +2,7 @@
 import { api, qs } from "./client";
 import type {
   Account, AssetList, AuditRow, BalanceSheetReport, CashFlowReport, ClosingPreview, DailyDay, DailyMonth,
-  Dashboard, EquityReport, EventItem, EventResult, GeneralLedgerReport, JournalPage, KasirOverview, Me, Party,
+  Dashboard, EquityReport, EventItem, EventResult, GeneralLedgerReport, JournalPage, KasirOverview, Me, NoteSection, NotesReport, OpeningDetail, Party,
   ProfitLossReport, SalesRecapReport, Settings, TaxReport, TrialBalanceRow, UserRow,
 } from "../types";
 
@@ -50,6 +50,8 @@ export const assetApi = {
   list: () => api<AssetList>("/assets"),
   create: (body: { name: string; acquiredOn: string; cost: number | null; usefulLifeYears: number }) =>
     api<Id>("/assets", { method: "POST", body }),
+  update: (id: number, body: { name: string; acquiredOn: string; cost: number | null; usefulLifeYears: number }) =>
+    api<Id>(`/assets/${id}`, { method: "PUT", body }),
   void: (id: number) => api<Id>(`/assets/${id}/void`, { method: "POST" }),
 };
 
@@ -58,10 +60,15 @@ export const masterApi = {
   saveSettings: (body: Partial<Settings>) => api<Settings>("/settings", { method: "PUT", body }),
   accounts: () => api<Account[]>("/accounts"),
   saveAccount: (id: number, body: Partial<Account>) => api<Id>(`/accounts/${id}`, { method: "PUT", body }),
+  createAccount: (body: Partial<Account>) => api<Id>("/accounts", { method: "POST", body }),
+  openingDetails: () => api<OpeningDetail[]>("/opening-details"),
+  saveOpeningDetails: (accountId: number, rows: { partyId: number; amount: number | null }[]) =>
+    api<Id>(`/accounts/${accountId}/opening-details`, { method: "PUT", body: { rows } }),
   parties: () => api<Party[]>("/parties"),
   createParty: (body: { name: string; type: string }) => api<Id>("/parties", { method: "POST", body }),
   updateParty: (id: number, body: Partial<Party>) => api<Id>(`/parties/${id}`, { method: "PUT", body }),
   events: () => api<EventItem[]>("/events"),
+  saveEventNote: (eventId: number, note: string) => api<Id>(`/events/${eventId}/note`, { method: "PUT", body: { note } }),
   createEvent: (body: { name: string; startDate?: string }) => api<Id>("/events", { method: "POST", body }),
 };
 
@@ -76,6 +83,8 @@ export const reportApi = {
   events: () => api<{ year: number; closedMonth: number; events: EventResult[] }>("/reports/events"),
   salesRecap: () => api<SalesRecapReport>("/reports/sales-recap"),
   tax: () => api<TaxReport>("/reports/tax"),
+  notes: () => api<NotesReport>("/reports/notes"),
+  saveNotes: (sections: NoteSection[] | null) => api<NotesReport>("/reports/notes", { method: "PUT", body: { sections } }),
 };
 
 export const closingApi = {
