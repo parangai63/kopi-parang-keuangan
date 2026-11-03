@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Layout: sidebar navigasi + area kerja; di HP sidebar jadi bar atas dengan nav geser. Nila (indigo batik) sebagai aksen, soga (cokelat batik Solo) untuk merek. */
+/* Layout: sidebar navigasi + area kerja; di layar kecil sidebar jadi bar atas dengan menu hamburger. Nila (indigo batik) sebagai aksen, soga (cokelat batik Solo) untuk merek. */
 :root {
   --bg: #F3F4F7; --surface: #FFFFFF; --sunk: #ECEEF3; --ink: #1A1C25; --muted: #5C6172; --faint: #8A8FA0; --line: #DCDFE7;
   --accent: #2D3F8E; --accent-ink: #FFFFFF; --accent-soft: #E5E8F6;
@@ -52,6 +52,13 @@ button, input, select { font: inherit; color: inherit; }
 .nav button[aria-current="page"] { background: var(--side-active); color: #FFFFFF; box-shadow: inset 3px 0 0 var(--soga); }
 .nav button:focus-visible { outline: 2px solid var(--accent); }
 .nav .count { font-size: 11px; background: #B32A1E; color: #fff; border-radius: 99px; padding: 0 7px; line-height: 18px; }
+.side-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.burger { all: unset; display: none; position: relative; cursor: pointer; padding: 8px; border-radius: 8px; color: var(--side-ink); line-height: 0; }
+.burger:hover { background: var(--side-active); }
+.burger:focus-visible { outline: 2px solid var(--accent); }
+.burger svg { width: 22px; height: 22px; }
+.burger .dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 99px; background: #B32A1E; box-shadow: 0 0 0 2px var(--side); }
+.side-scrim { display: none; }
 .side-foot { margin-top: auto; font-size: 11.5px; color: var(--side-muted); padding-inline: 6px; line-height: 1.5; }
 
 main { min-width: 0; padding-inline: 28px; padding-block: 0 48px; }
@@ -208,11 +215,16 @@ table.t { border-collapse: collapse; width: 100%; font-size: 13px; }
 }
 @media (max-width: 820px) {
   .app { grid-template-columns: minmax(0, 1fr); }
-  .side { position: sticky; top: env(safe-area-inset-top, 0px); height: auto; z-index: 5; padding-block: 10px; padding-inline: 16px; gap: 10px; }
-  .nav { flex-direction: row; overflow-x: auto; gap: 4px; scrollbar-width: none; }
-  .nav button { white-space: nowrap; padding: 7px 10px; }
-  .nav button[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--soga); }
-  .side-foot { display: none; }
+  .side { position: sticky; top: env(safe-area-inset-top, 0px); height: auto; z-index: 20; padding-block: 8px; padding-inline: 16px; gap: 0; }
+  .burger { display: inline-block; margin-right: -8px; }
+  .side .nav, .side .side-foot { display: none; }
+  .side.open .nav, .side.open .side-foot { display: flex; }
+  .side.open .nav { padding-block: 12px 8px; margin-top: 8px; border-top: 1px solid var(--side-active);
+    max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); overflow-y: auto; }
+  .nav button { padding: 11px 12px; font-size: 15px; }
+  .side.open .side-foot { flex-direction: column; padding-block: 10px 6px; border-top: 1px solid var(--side-active); }
+  .side-scrim { display: block; position: fixed; inset: 0; z-index: 15; background: rgba(10, 12, 20, .45); }
+  .top-right .seg-label, .top-right .who { display: none; }
   main { padding-inline: 16px; }
   .top h1 { font-size: 21px; }
   .day { min-height: 52px; padding: 4px 5px 6px; }
