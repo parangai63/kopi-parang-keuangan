@@ -73,7 +73,10 @@ function EventAnalysis() {
     <div className="grid">
       <div>
         <div className="rep-bar">
-          <div className="rep-head">KOPI PARANG · {period} · dalam Rupiah</div>
+          <div className="rep-head">
+            <img src="/logo-parang-hitam.png" alt="" className="rep-logo" aria-hidden="true" />
+            <span>KOPI PARANG · {period} · dalam Rupiah</span>
+          </div>
           <ExportMenu build={() => ({ filename: "analisis-event", title: "Analisis Event", period, ...toExport(EVENT_COLUMNS, rows, "Event") })} />
         </div>
         <ReportTable columns={EVENT_COLUMNS} rows={rows} firstHeader="Event" />

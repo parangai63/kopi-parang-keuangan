@@ -57,7 +57,9 @@ export default function Sidebar({ active, onNavigate }: { active: PageId; onNavi
       <aside className={`side${open ? " open" : ""}`}>
         <div className="side-bar">
           <div className="brand">
-            <div className="mark" aria-hidden="true" />
+            <div className="mark" aria-hidden="true">
+              <img src="/logo-parang.png" alt="" className="mark-img" />
+            </div>
             <div>
               <b>Kopi Parang</b>
               <span>Keuangan {user.fiscalYear}</span>

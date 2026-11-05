@@ -111,7 +111,10 @@ export default function Calk() {
   return (
     <>
       <div className="rep-bar">
-        <div className="rep-head">KOPI PARANG · {periodLabel(data.year, data.closedMonth)}</div>
+        <div className="rep-head">
+          <img src="/logo-parang-hitam.png" alt="" className="rep-logo" aria-hidden="true" />
+          <span>KOPI PARANG · {periodLabel(data.year, data.closedMonth)}</span>
+        </div>
         <div className="btns" style={{ margin: 0 }}>
           {canEdit && <button className="btn ghost" onClick={() => setDraft(data.sections.map(({ title, body }) => ({ title, body })))}>Ubah teks</button>}
           {canEdit && !data.isDefault && <button className="btn ghost" disabled={busy} onClick={() => save(null)}>Teks bawaan</button>}

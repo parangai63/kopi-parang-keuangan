@@ -3,6 +3,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { LOGO_PARANG_HITAM_DATA_URI } from "./logoData";
 
 export interface ExportColumn {
   header: string;
@@ -61,15 +62,27 @@ export function exportToExcel(x: ExportSpec | ExportBundle) {
 const orientationOf = (spec: ExportSpec) => (spec.columns.length > 6 ? "landscape" : "portrait");
 
 function drawPdfPart(doc: jsPDF, spec: ExportSpec) {
-  doc.setFontSize(13);
-  doc.text("KOPI PARANG", 14, 14);
-  doc.setFontSize(11);
-  doc.text(spec.title, 14, 20);
-  doc.setFontSize(8.5);
-  doc.setTextColor(110);
-  doc.text(`${spec.period} · dalam Rupiah · dicetak ${printed()}`, 14, 25);
+  try {
+    doc.addImage(LOGO_PARANG_HITAM_DATA_URI, "PNG", 14, 8, 12, 12);
+    doc.setFontSize(13);
+    doc.setTextColor(43, 29, 20);
+    doc.text("KOPI PARANG", 29, 14);
+    doc.setFontSize(11);
+    doc.text(spec.title, 29, 19.5);
+    doc.setFontSize(8.5);
+    doc.setTextColor(110);
+    doc.text(`${spec.period} · dalam Rupiah · dicetak ${printed()}`, 14, 26);
+  } catch {
+    doc.setFontSize(13);
+    doc.text("KOPI PARANG", 14, 14);
+    doc.setFontSize(11);
+    doc.text(spec.title, 14, 20);
+    doc.setFontSize(8.5);
+    doc.setTextColor(110);
+    doc.text(`${spec.period} · dalam Rupiah · dicetak ${printed()}`, 14, 25);
+  }
   autoTable(doc, {
-    startY: 30,
+    startY: 31,
     head: [spec.columns.map((c) => c.header)],
     body: spec.rows.map((r) => spec.columns.map((c) => String(r[c.key] ?? ""))),
     styles: { fontSize: 7.5, cellPadding: 1.6 },
