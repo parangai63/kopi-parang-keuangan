@@ -1,11 +1,25 @@
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { BarChart3, BookLock, BookOpen, Building2, CalendarDays, FileText, LayoutDashboard, LucideIcon, Menu, Settings, Store, UserCog, Users, X } from "lucide-react";
 import { dailyApi } from "../api";
 import { NAV, PageId } from "../types/navigation";
 import { useAuth } from "../context/AuthContext";
-import { ROLE_LABEL } from "./ui";
+import { Avatar, ROLE_LABEL } from "./ui";
 
-/** Sidebar gelap dengan merek motif batik soga (rancangan original). Di layar kecil menjadi bar atas dengan tombol hamburger yang membuka menu. */
+const ICON: Record<PageId, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  kasir: Store,
+  omzet: CalendarDays,
+  jurnal: BookOpen,
+  laporan: FileText,
+  analisis: BarChart3,
+  aset: Building2,
+  pihak: Users,
+  "tutup-buku": BookLock,
+  pengaturan: Settings,
+  pengguna: UserCog,
+};
+
+/** Sidebar terang dengan ikon per menu dan merek motif batik. Di layar kecil menjadi bar atas dengan tombol hamburger yang membuka menu. */
 export default function Sidebar({ active, onNavigate }: { active: PageId; onNavigate: (p: PageId) => void }) {
   const { user } = useAuth();
   const [notOk, setNotOk] = useState(0);
@@ -55,17 +69,24 @@ export default function Sidebar({ active, onNavigate }: { active: PageId; onNavi
           </button>
         </div>
         <nav className="nav" id="menu-utama" aria-label="Menu utama">
-          {items.map((n) => (
-            <button key={n.id} onClick={() => { setOpen(false); onNavigate(n.id); }} aria-current={n.id === active ? "page" : undefined}>
-              {n.label}
-              {n.id === "omzet" && notOk > 0 && <span className="count">{notOk}</span>}
-            </button>
-          ))}
+          {items.map((n) => {
+            const Icon = ICON[n.id];
+            return (
+              <button key={n.id} onClick={() => { setOpen(false); onNavigate(n.id); }} aria-current={n.id === active ? "page" : undefined}>
+                <Icon aria-hidden="true" />
+                <span className="lbl">{n.label}</span>
+                {n.id === "omzet" && notOk > 0 && <span className="count">{notOk}</span>}
+              </button>
+            );
+          })}
         </nav>
         <div className="side-foot">
           <div className="side-user">
-            <b>{user.name}</b>
-            <span>{ROLE_LABEL[user.role]}</span>
+            <Avatar name={user.name} />
+            <div>
+              <b>{user.name}</b>
+              <span>{ROLE_LABEL[user.role]}</span>
+            </div>
           </div>
           Aplikasi terpisah dari Parang-ops dan Majoo. Tidak ada koneksi otomatis; angka Parang-ops diketik manual saat tutup buku.
         </div>

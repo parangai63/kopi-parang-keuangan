@@ -59,7 +59,31 @@ export default function JournalPage() {
 
   return (
     <>
-      <PageHeader title="Jurnal transaksi" subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""} />
+      <PageHeader
+        title="Jurnal transaksi"
+        subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""}
+        actions={
+          <>
+            {!showForm && <button className="btn" onClick={() => setShowForm(true)}>+ Transaksi baru</button>}
+            <ExportMenu
+              disabled={!d}
+              build={async () => ({
+                filename: "jurnal",
+                title: "Jurnal transaksi",
+                period: f.month ? BULAN[(f.month as number) - 1] : "Semua bulan",
+                columns: [
+                  { header: "No. bukti", key: "voucherNo" }, { header: "Tanggal", key: "date" },
+                  { header: "Debet", key: "debit" }, { header: "Kredit", key: "credit" },
+                  { header: "Nominal", key: "amount", numeric: true }, { header: "Keterangan", key: "description" },
+                  { header: "Event", key: "event" }, { header: "Pihak", key: "party" }, { header: "No. nota", key: "receiptNo" },
+                ],
+                // Seluruh hasil filter (semua halaman), bukan hanya halaman yang tampil.
+                rows: await fetchAllRows(f),
+              })}
+            />
+          </>
+        }
+      />
       {showForm && accounts.data && (
         <JournalForm
           accounts={accounts.data}
@@ -95,23 +119,6 @@ export default function JournalPage() {
             <option value="AUTO">Otomatis sistem</option>
           </select>
         </Field>
-        {!showForm && <button className="btn" onClick={() => setShowForm(true)}>+ Transaksi baru</button>}
-        <ExportMenu
-          disabled={!d}
-          build={async () => ({
-            filename: "jurnal",
-            title: "Jurnal transaksi",
-            period: f.month ? BULAN[(f.month as number) - 1] : "Semua bulan",
-            columns: [
-              { header: "No. bukti", key: "voucherNo" }, { header: "Tanggal", key: "date" },
-              { header: "Debet", key: "debit" }, { header: "Kredit", key: "credit" },
-              { header: "Nominal", key: "amount", numeric: true }, { header: "Keterangan", key: "description" },
-              { header: "Event", key: "event" }, { header: "Pihak", key: "party" }, { header: "No. nota", key: "receiptNo" },
-            ],
-            // Seluruh hasil filter (semua halaman), bukan hanya halaman yang tampil.
-            rows: await fetchAllRows(f),
-          })}
-        />
       </div>
       {list.loading ? (
         <Loading />

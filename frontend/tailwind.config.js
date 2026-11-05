@@ -1,7 +1,6 @@
 /** @type {import('tailwindcss').Config} */
-// Tampilan mengikuti rancangan original (original/kopi-parang-keuangan-artifact.html):
-// nila (indigo batik) sebagai aksen, soga (cokelat batik Solo) untuk merek, mode gelap otomatis.
-// Semua warna = variabel CSS di src/index.css, jadi utility Tailwind ikut berganti di mode gelap.
+// Tema glassmorphism terang: panel kaca buram di atas latar gradien, aksen cokelat kopi (espresso → karamel).
+// Semua warna = variabel CSS di src/index.css.
 // Preflight dimatikan supaya perilaku dasar elemen sama dengan rancangan original.
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
@@ -23,8 +22,8 @@ export default {
         crit: { DEFAULT: "var(--crit)", soft: "var(--crit-soft)" },
       },
       fontFamily: {
-        display: ["Literata", "Georgia", "Times New Roman", "serif"],
-        sans: ["IBM Plex Sans", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        display: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
+        sans: ["Plus Jakarta Sans", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
         mono: ["IBM Plex Mono", "ui-monospace", "SF Mono", "Menlo", "monospace"],
       },
     },

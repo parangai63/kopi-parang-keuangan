@@ -1,36 +1,44 @@
 // Komponen UI kecil yang dipakai di semua halaman. Kelas CSS mengikuti rancangan original
 // (original/kopi-parang-keuangan-artifact.html) — lihat src/index.css.
 import { ReactNode } from "react";
-import { Loader2, Lock, LogOut } from "lucide-react";
+import { CalendarCheck, Loader2, Lock, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { BULAN } from "../utils/format";
 import type { DayStatus, Role } from "../types";
 
 export const ROLE_LABEL: Record<Role, string> = { OWNER: "Owner", ADMIN: "Admin keuangan", KASIR: "Kasir" };
 
-/** Header halaman: judul (Literata) + sub, lalu chip tutup buku, pengguna yang masuk, dan tombol keluar. */
+/** Lingkaran inisial nama pengguna (maks. 2 huruf). */
+export function Avatar({ name }: { name: string }) {
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  return <span className="avatar" aria-hidden="true">{initials || "?"}</span>;
+}
+
+/** Header halaman: baris utilitas (chip tutup buku, pengguna, keluar), lalu judul + sub dengan tombol aksi halaman di kanan. */
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   const { user, logout } = useAuth();
   return (
     <header className="top">
-      <div>
-        <h1>{title}</h1>
-        {subtitle && <div className="sub">{subtitle}</div>}
-      </div>
-      <div className="top-right">
-        {actions}
-        {user && (
-          <>
-            <span className="chip">Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
-            <span className="seg-label">Masuk sebagai</span>
+      {user && (
+        <div className="top-util">
+          <span className="chip"><CalendarCheck aria-hidden="true" />Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
+          <span className="user-pill" title="Masuk sebagai">
+            <Avatar name={user.name} />
             <span className="who">
-              {user.name} <small>· {ROLE_LABEL[user.role]}</small>
+              {user.name} <small>{ROLE_LABEL[user.role]}</small>
             </span>
-            <button className="btn ghost sm" onClick={logout}>
-              <LogOut /> Keluar
-            </button>
-          </>
-        )}
+          </span>
+          <button className="btn ghost sm" onClick={logout}>
+            <LogOut /> Keluar
+          </button>
+        </div>
+      )}
+      <div className="top-main">
+        <div className="top-title">
+          <h1>{title}</h1>
+          {subtitle && <div className="sub">{subtitle}</div>}
+        </div>
+        {actions && <div className="top-right">{actions}</div>}
       </div>
     </header>
   );

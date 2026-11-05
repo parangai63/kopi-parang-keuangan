@@ -31,10 +31,10 @@ export default function MonthlyChart({ data }: { data: { month: number; netReven
           const y0 = y(0), yn = y(d.netRevenue), yp = y(d.netProfit);
           return (
             <g key={d.month}>
-              <rect x={cx - bar - 1} y={yn} width={bar} height={Math.max(0, y0 - yn)} rx={2} fill="var(--accent)">
+              <rect x={cx - bar - 1} y={yn} width={bar} height={Math.max(0, y0 - yn)} rx={4} fill="var(--accent)">
                 <title>{`${BULAN[d.month - 1]}: pendapatan bersih ${rp(d.netRevenue)}`}</title>
               </rect>
-              <rect x={cx + 1} y={Math.min(yp, y0)} width={bar} height={Math.abs(y0 - yp) || 1} rx={2} fill={d.netProfit < 0 ? "var(--crit)" : "var(--good)"}>
+              <rect x={cx + 1} y={Math.min(yp, y0)} width={bar} height={Math.abs(y0 - yp) || 1} rx={4} fill={d.netProfit < 0 ? "var(--crit)" : "var(--good)"}>
                 <title>{`${BULAN[d.month - 1]}: laba bersih ${rp(d.netProfit)}`}</title>
               </rect>
               <text x={cx} y={H - 10} textAnchor="middle" fontSize="11.5" fill="var(--muted)">{BLN3[d.month - 1]}</text>
