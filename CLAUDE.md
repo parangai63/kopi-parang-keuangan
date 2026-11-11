@@ -64,7 +64,6 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 ## Belum dikerjakan (lihat fase di spesifikasi)
 
 - Login email + kata sandi + 2FA untuk owner/admin (kodenya ada di `authService.loginWithPassword`, belum dipakai UI; sementara semua peran login PIN).
-- Edit jurnal dari UI (endpoint PUT sudah ada).
 - Akumulasi penyusutan awal tahun untuk aset sebelum 2026 (perlu kolom baru di `fixed_assets` + saldo awal
   Peralatan/Akumulasi; menunggu inventarisasi owner).
 - Pembuatan tahun buku baru (rollover 2027).

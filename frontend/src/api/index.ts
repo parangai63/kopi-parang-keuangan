@@ -37,10 +37,27 @@ export interface JournalInput {
   partyId: number | "";
 }
 
+/** Bentuk GET /journal/:id (journalService.getJournal). */
+export interface JournalDetail {
+  id: number;
+  voucherNo: string;
+  date: string;
+  month: number;
+  debitAccountId: number;
+  creditAccountId: number;
+  amount: number;
+  description: string;
+  receiptNo: string | null;
+  eventId: number | null;
+  partyId: number | null;
+}
+
 export const journalApi = {
   list: (f: { q?: string; month?: number | ""; account?: string; event?: string; kind?: string; page?: number; pageSize?: number }) =>
     api<JournalPage>(`/journal${qs(f)}`),
+  get: (id: number) => api<JournalDetail>(`/journal/${id}`),
   create: (body: JournalInput) => api<{ id: number; voucherNo: string }>("/journal", { method: "POST", body: clean(body) }),
+  update: (id: number, body: JournalInput) => api<{ id: number; voucherNo: string }>(`/journal/${id}`, { method: "PUT", body: clean(body) }),
   void: (id: number) => api<{ voucherNo: string }>(`/journal/${id}/void`, { method: "POST" }),
 };
 

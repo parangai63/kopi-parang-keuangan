@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { journalApi, masterApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { useAuth } from "../context/AuthContext";
@@ -28,7 +28,8 @@ export default function JournalPage() {
   const [f, setF] = useState({ q: "", month: "" as number | "", account: "", event: "", kind: "" });
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
+  // null = form tertutup, "new" = transaksi baru, angka = id jurnal yang diedit.
+  const [form, setForm] = useState<null | "new" | number>(null);
   const accounts = useApi(() => masterApi.accounts(), []);
   const events = useApi(() => masterApi.events(), []);
   const parties = useApi(() => masterApi.parties(), []);
@@ -56,6 +57,35 @@ export default function JournalPage() {
   const d = list.data;
   const pages = d ? Math.ceil(d.total / PAGE_SIZE) : 1;
   const isOwner = user?.role === "OWNER";
+  const canEdit = isOwner || user?.role === "ADMIN";
+  // Sama dengan assertDateOpen di server: hanya tahun buku aktif dan bulan yang belum ditutup.
+  const editable = (j: { kind: string; id?: number; year: number; month: number }) =>
+    j.kind === "UMUM" && !!j.id && j.year === user?.fiscalYear && j.month > (user?.closedMonth ?? 0);
+
+  // Baris yang barusan disimpan: disorot sebentar dan digulir ke tengah layar setelah daftar dimuat ulang.
+  const [savedId, setSavedId] = useState<number | null>(null);
+  useEffect(() => {
+    if (savedId === null) return;
+    const row = document.querySelector(`tr[data-id="${savedId}"]`);
+    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+    else toast("Transaksi tersimpan, tapi tidak tampil di halaman/filter ini (mungkin tanggalnya berubah).");
+    const t = setTimeout(() => setSavedId(null), 3000);
+    return () => clearTimeout(t);
+  }, [savedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function startEdit(id: number) {
+    setForm(id);
+    setSavedId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeForm() {
+    // Batal edit: kembali ke baris asal agar tidak perlu mencarinya lagi.
+    if (typeof form === "number") {
+      document.querySelector(`tr[data-id="${form}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setForm(null);
+  }
 
   return (
     <>
@@ -64,7 +94,7 @@ export default function JournalPage() {
         subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""}
         actions={
           <>
-            {!showForm && <button className="btn" onClick={() => setShowForm(true)}>+ Transaksi baru</button>}
+            {form === null && <button className="btn" onClick={() => setForm("new")}>+ Transaksi baru</button>}
             <ExportMenu
               disabled={!d}
               build={async () => ({
@@ -84,13 +114,21 @@ export default function JournalPage() {
           </>
         }
       />
-      {showForm && accounts.data && (
+      {form !== null && accounts.data && (
         <JournalForm
+          key={String(form)}
           accounts={accounts.data}
           events={events.data ?? []}
           parties={parties.data ?? []}
-          onCancel={() => setShowForm(false)}
-          onSaved={(no) => { toast(`Tersimpan sebagai ${no}.`); setShowForm(false); list.reload(); }}
+          editId={form === "new" ? undefined : form}
+          onCancel={closeForm}
+          onSaved={async (no, id) => {
+            toast(form === "new" ? `Tersimpan sebagai ${no}.` : `${no} diperbarui.`);
+            setForm(null);
+            // Tunggu daftar terbaru dulu (useApi menampilkan data lama selama memuat), baru sorot barisnya.
+            await list.reload();
+            setSavedId(id);
+          }}
         />
       )}
       <div className="toolbar">
@@ -130,14 +168,24 @@ export default function JournalPage() {
             <thead>
               <tr>
                 <th>No. bukti</th><th>Tanggal</th><th>Debet</th><th>Kredit</th><th className="r">Nominal</th><th>Keterangan</th>
-                {isOwner && <th />}
+                {canEdit && <th />}
               </tr>
             </thead>
             <tbody>
               {d.rows.map((j) => (
-                <tr key={j.voucherNo}>
+                <tr
+                  key={j.voucherNo}
+                  data-id={j.id}
+                  className={j.id && j.id === form ? "editing" : j.id && j.id === savedId ? "just-saved" : undefined}
+                  aria-current={j.id && j.id === form ? "true" : undefined}
+                >
                   <td className="mono acc">
-                    {j.kind === "UMUM" ? j.voucherNo : <Pill tone={j.kind === "OTOMATIS" ? "auto" : "adj"}>{j.kind === "OTOMATIS" ? "otomatis" : "penyesuaian"}</Pill>}
+                    {j.kind === "UMUM" ? (
+                      <>
+                        {j.voucherNo}
+                        {j.id === form && <> <Pill tone="auto">sedang diedit</Pill></>}
+                      </>
+                    ) : <Pill tone={j.kind === "OTOMATIS" ? "auto" : "adj"}>{j.kind === "OTOMATIS" ? "otomatis" : "penyesuaian"}</Pill>}
                   </td>
                   <td className="acc">{tgl(j.date)}</td>
                   <td className="acc">{j.debit}</td>
@@ -149,18 +197,25 @@ export default function JournalPage() {
                     {j.party && <span className="note"> · {j.party}</span>}
                     {j.receiptNo && <span className="note"> · nota {j.receiptNo}</span>}
                   </td>
-                  {isOwner && (
+                  {canEdit && (
                     <td className="act">
-                      {j.kind === "UMUM" && j.id && (
-                        <button className="iconbtn" title="Batalkan (soft delete)" aria-label={`Batalkan ${j.voucherNo}`} onClick={() => voidEntry(j.id!, j.voucherNo)}>
-                          <Trash2 />
-                        </button>
+                      {editable(j) && (
+                        <>
+                          <button className="iconbtn" title="Ubah" aria-label={`Ubah ${j.voucherNo}`} onClick={() => startEdit(j.id!)}>
+                            <Pencil />
+                          </button>
+                          {isOwner && (
+                            <button className="iconbtn" title="Batalkan (soft delete)" aria-label={`Batalkan ${j.voucherNo}`} onClick={() => voidEntry(j.id!, j.voucherNo)}>
+                              <Trash2 />
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
                   )}
                 </tr>
               ))}
-              {!d.rows.length && <tr><td colSpan={isOwner ? 7 : 6} className="empty-row">Tidak ada transaksi yang cocok dengan filter.</td></tr>}
+              {!d.rows.length && <tr><td colSpan={canEdit ? 7 : 6} className="empty-row">Tidak ada transaksi yang cocok dengan filter.</td></tr>}
             </tbody>
           </table>
           {pages > 1 && (

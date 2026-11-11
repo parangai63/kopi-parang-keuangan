@@ -1,29 +1,56 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { journalApi, JournalInput } from "../api";
 import { todayJakarta } from "../utils/format";
-import { Field, Panel } from "./ui";
+import { ErrorBox, Field, Loading, Panel } from "./ui";
 import MoneyInput from "./MoneyInput";
 import AccountSelect from "./AccountSelect";
 import type { Account, EventItem, Party } from "../types";
 
+const EMPTY = (): JournalInput => ({
+  date: todayJakarta(), debitAccountId: "", creditAccountId: "", amount: null,
+  description: "", receiptNo: "", eventId: "", partyId: "",
+});
+
 /** Satu transaksi = satu akun debet + satu akun kredit. Nomor bukti dibuat server (JU-0001 dst).
+ * Dengan `editId`, form memuat jurnal itu dan menyimpan lewat PUT (nomor bukti tetap).
  * Validasi utama dicek di server; di sini hanya pemeriksaan cepat agar pesan muncul lebih awal. */
 export default function JournalForm({
-  accounts, events, parties, onSaved, onCancel,
+  accounts, events, parties, editId, onSaved, onCancel,
 }: {
   accounts: Account[];
   events: EventItem[];
   parties: Party[];
-  onSaved: (voucherNo: string) => void;
+  editId?: number;
+  onSaved: (voucherNo: string, id: number) => void;
   onCancel: () => void;
 }) {
-  const [v, setV] = useState<JournalInput>({
-    date: todayJakarta(), debitAccountId: "", creditAccountId: "", amount: null,
-    description: "", receiptNo: "", eventId: "", partyId: "",
-  });
+  const [v, setV] = useState<JournalInput>(EMPTY);
+  const [voucherNo, setVoucherNo] = useState("");
+  const [loading, setLoading] = useState(!!editId);
+  const [loadErr, setLoadErr] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<JournalInput>) => setV((s) => ({ ...s, ...patch }));
+
+  async function load() {
+    if (!editId) return;
+    setLoading(true);
+    setLoadErr("");
+    try {
+      const j = await journalApi.get(editId);
+      setVoucherNo(j.voucherNo);
+      setV({
+        date: j.date, debitAccountId: j.debitAccountId, creditAccountId: j.creditAccountId, amount: j.amount,
+        description: j.description, receiptNo: j.receiptNo ?? "", eventId: j.eventId ?? "", partyId: j.partyId ?? "",
+      });
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : "Gagal memuat jurnal.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [editId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -34,8 +61,8 @@ export default function JournalForm({
     if (!v.description.trim()) return setErr("Isi keterangan agar transaksi mudah dicari nanti.");
     setBusy(true);
     try {
-      const r = await journalApi.create(v);
-      onSaved(r.voucherNo);
+      const r = editId ? await journalApi.update(editId, v) : await journalApi.create(v);
+      onSaved(r.voucherNo, r.id);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Gagal menyimpan.");
     } finally {
@@ -43,47 +70,59 @@ export default function JournalForm({
     }
   }
 
+  const title = editId ? `Ubah transaksi ${voucherNo}` : "Transaksi baru";
+  const hint = editId
+    ? "Nomor bukti tetap. Perubahan tercatat di jejak audit beserta nilai sebelumnya."
+    : "Satu transaksi = satu akun debet dan satu akun kredit. Nomor bukti dibuat otomatis.";
+
   return (
-    <Panel title="Transaksi baru" hint="Satu transaksi = satu akun debet dan satu akun kredit. Nomor bukti dibuat otomatis." className="mb-4">
-      <form className="f" onSubmit={submit}>
-        <fieldset>
-          <Field label="Tanggal">
-            <input type="date" value={v.date} onChange={(e) => set({ date: e.target.value })} />
-          </Field>
-          <Field label="Akun debet">
-            <AccountSelect accounts={accounts} value={v.debitAccountId} blank="Pilih akun…" onChange={(x) => set({ debitAccountId: x as number })} />
-          </Field>
-          <Field label="Akun kredit">
-            <AccountSelect accounts={accounts} value={v.creditAccountId} blank="Pilih akun…" onChange={(x) => set({ creditAccountId: x as number })} />
-          </Field>
-          <Field label="Nominal (Rp)">
-            <MoneyInput value={v.amount} onChange={(x) => set({ amount: x })} />
-          </Field>
-          <Field label="Keterangan" className="wide">
-            <input autoComplete="off" value={v.description} onChange={(e) => set({ description: e.target.value })} placeholder="mis. Belanja susu fresh milk 2 karton" />
-          </Field>
-          <Field label="No. nota">
-            <input autoComplete="off" value={v.receiptNo} onChange={(e) => set({ receiptNo: e.target.value })} placeholder="sama dengan di Parang-ops" />
-          </Field>
-          <Field label="Tag event">
-            <select value={v.eventId} onChange={(e) => set({ eventId: Number(e.target.value) || "" })}>
-              <option value="">Tanpa event</option>
-              {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Pihak (opsional)">
-            <select value={v.partyId} onChange={(e) => set({ partyId: Number(e.target.value) || "" })}>
-              <option value="">—</option>
-              {parties.filter((p) => p.isActive).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </Field>
-        </fieldset>
-        {err && <div role="alert" className="err">{err}</div>}
-        <div className="btns">
-          <button className="btn" type="submit" disabled={busy}>{busy ? "Menyimpan…" : "Simpan transaksi"}</button>
-          <button type="button" className="btn ghost" onClick={onCancel}>Batal</button>
-        </div>
-      </form>
+    <Panel title={title} hint={hint} className="mb-4">
+      {loading ? (
+        <Loading />
+      ) : loadErr ? (
+        <ErrorBox message={loadErr} onRetry={load} />
+      ) : (
+        <form className="f" onSubmit={submit}>
+          <fieldset>
+            <Field label="Tanggal">
+              <input type="date" value={v.date} onChange={(e) => set({ date: e.target.value })} />
+            </Field>
+            <Field label="Akun debet">
+              <AccountSelect accounts={accounts} value={v.debitAccountId} blank="Pilih akun…" onChange={(x) => set({ debitAccountId: x as number })} />
+            </Field>
+            <Field label="Akun kredit">
+              <AccountSelect accounts={accounts} value={v.creditAccountId} blank="Pilih akun…" onChange={(x) => set({ creditAccountId: x as number })} />
+            </Field>
+            <Field label="Nominal (Rp)">
+              <MoneyInput value={v.amount} onChange={(x) => set({ amount: x })} />
+            </Field>
+            <Field label="Keterangan" className="wide">
+              <input autoComplete="off" value={v.description} onChange={(e) => set({ description: e.target.value })} placeholder="mis. Belanja susu fresh milk 2 karton" />
+            </Field>
+            <Field label="No. nota">
+              <input autoComplete="off" value={v.receiptNo} onChange={(e) => set({ receiptNo: e.target.value })} placeholder="sama dengan di Parang-ops" />
+            </Field>
+            <Field label="Tag event">
+              <select value={v.eventId} onChange={(e) => set({ eventId: Number(e.target.value) || "" })}>
+                <option value="">Tanpa event</option>
+                {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Pihak (opsional)">
+              <select value={v.partyId} onChange={(e) => set({ partyId: Number(e.target.value) || "" })}>
+                <option value="">—</option>
+                {/* Pihak nonaktif tetap muncul bila sudah terpasang di jurnal yang diedit. */}
+                {parties.filter((p) => p.isActive || p.id === v.partyId).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+          </fieldset>
+          {err && <div role="alert" className="err">{err}</div>}
+          <div className="btns">
+            <button className="btn" type="submit" disabled={busy}>{busy ? "Menyimpan…" : editId ? "Simpan perubahan" : "Simpan transaksi"}</button>
+            <button type="button" className="btn ghost" onClick={onCancel}>Batal</button>
+          </div>
+        </form>
+      )}
     </Panel>
   );
 }
