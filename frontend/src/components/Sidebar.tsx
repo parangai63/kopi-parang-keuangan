@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, BookLock, BookOpen, Building2, CalendarDays, FileText, LayoutDashboard, LucideIcon, Menu, Settings, Store, UserCog, Users, X } from "lucide-react";
+import { BarChart3, BookLock, BookOpen, Building2, CalendarDays, ChevronLeft, ChevronRight, FileText, LayoutDashboard, LucideIcon, Menu, Settings, Store, UserCog, Users, X } from "lucide-react";
 import { dailyApi } from "../api";
 import { NAV, PageId } from "../types/navigation";
 import { useAuth } from "../context/AuthContext";
@@ -19,11 +19,22 @@ const ICON: Record<PageId, LucideIcon> = {
   pengguna: UserCog,
 };
 
-/** Sidebar terang dengan ikon per menu dan merek motif batik. Di layar kecil menjadi bar atas dengan tombol hamburger yang membuka menu. */
+// Pilihan sidebar diciutkan (hanya ikon) diingat per perangkat.
+const COLLAPSED_KEY = "kpk_side_collapsed";
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+/** Sidebar espresso dengan ikon per menu; di desktop bisa diciutkan jadi kolom ikon. Di layar kecil menjadi bar atas dengan tombol hamburger yang membuka menu. */
 export default function Sidebar({ active, onNavigate }: { active: PageId; onNavigate: (p: PageId) => void }) {
   const { user } = useAuth();
   const [notOk, setNotOk] = useState(0);
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const running = user && user.closedMonth < 12 ? user.closedMonth + 1 : null;
   const canSeeDaily = user != null && user.role !== "KASIR";
 
@@ -49,12 +60,20 @@ export default function Sidebar({ active, onNavigate }: { active: PageId; onNavi
     };
   }, [open]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // penyimpanan diblokir: pilihan berlaku sampai halaman dimuat ulang
+    }
+  }, [collapsed]);
+
   if (!user) return null;
   const items = NAV.filter((n) => n.roles.includes(user.role));
 
   return (
     <>
-      <aside className={`side${open ? " open" : ""}`}>
+      <aside className={`side${open ? " open" : ""}${collapsed ? " collapsed" : ""}`}>
         <div className="side-bar">
           <div className="brand">
             <div className="mark" aria-hidden="true">
@@ -74,7 +93,7 @@ export default function Sidebar({ active, onNavigate }: { active: PageId; onNavi
           {items.map((n) => {
             const Icon = ICON[n.id];
             return (
-              <button key={n.id} onClick={() => { setOpen(false); onNavigate(n.id); }} aria-current={n.id === active ? "page" : undefined}>
+              <button key={n.id} onClick={() => { setOpen(false); onNavigate(n.id); }} aria-current={n.id === active ? "page" : undefined} title={collapsed ? n.label : undefined}>
                 <Icon aria-hidden="true" />
                 <span className="lbl">{n.label}</span>
                 {n.id === "omzet" && notOk > 0 && <span className="count">{notOk}</span>}
@@ -83,16 +102,27 @@ export default function Sidebar({ active, onNavigate }: { active: PageId; onNavi
           })}
         </nav>
         <div className="side-foot">
-          <div className="side-user">
+          <div className="side-user" title={collapsed ? `${user.name} · ${ROLE_LABEL[user.role]}` : undefined}>
             <Avatar name={user.name} />
             <div>
               <b>{user.name}</b>
               <span>{ROLE_LABEL[user.role]}</span>
             </div>
           </div>
-          Aplikasi terpisah dari Parang-ops dan Majoo. Tidak ada koneksi otomatis; angka Parang-ops diketik manual saat tutup buku.
+          <p className="side-note">Aplikasi terpisah dari Parang-ops dan Majoo. Tidak ada koneksi otomatis; angka Parang-ops diketik manual saat tutup buku.</p>
         </div>
       </aside>
+      {/* Di luar <aside> karena sidebar memotong isi yang keluar dari tepinya; posisinya menempel di garis batas. */}
+      <button
+        className={`side-toggle${collapsed ? " collapsed" : ""}`}
+        onClick={() => setCollapsed((c) => !c)}
+        aria-expanded={!collapsed}
+        aria-controls="menu-utama"
+        aria-label={collapsed ? "Lebarkan menu" : "Ciutkan menu"}
+        title={collapsed ? "Lebarkan menu" : "Ciutkan menu"}
+      >
+        {collapsed ? <ChevronRight /> : <ChevronLeft />}
+      </button>
       {open && <div className="side-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
     </>
   );
