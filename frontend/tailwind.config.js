@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Tema glassmorphism terang: panel kaca buram di atas latar gradien, aksen cokelat kopi (espresso → karamel).
+// Tema "espresso & krim": sidebar & tombol utama espresso, pilihan aktif karamel, permukaan krem padat.
 // Semua warna = variabel CSS di src/index.css.
 // Preflight dimatikan supaya perilaku dasar elemen sama dengan rancangan original.
 export default {
