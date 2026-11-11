@@ -415,17 +415,14 @@ a { color: var(--accent-text); }
 .checkrow { display: flex; flex-wrap: wrap; gap: 8px 20px; grid-column: 1 / -1; }
 
 .login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
-.login-card { width: 100%; max-width: 420px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line);
-  border-radius: 24px; overflow: hidden; box-shadow: 0 24px 60px -28px rgba(43, 29, 20, .45); }
-.login .brand { padding: 26px 28px; background: var(--espresso); position: relative; overflow: hidden; }
-.login .brand::after { content: ""; position: absolute; right: -50px; top: -60px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(200, 149, 95, .4), transparent 70%); }
-.login .brand > * { position: relative; z-index: 1; }
-.login .brand b { color: #FFF8F0; font-size: 21px; }
-.login .brand span { color: #BFA892; font-size: 12.5px; }
-.login .mark { width: 48px; height: 48px; border-radius: 14px; padding: 6px; background: rgba(255, 255, 255, .08); box-shadow: none; }
-.login .panel { padding: 26px 28px 8px; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.login-card { width: 100%; max-width: 410px; display: flex; flex-direction: column; gap: 22px; }
+.login .panel { padding: 28px; border-radius: 26px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 24px 60px -28px rgba(43, 29, 20, .45); }
 .login .panel h2 { font-size: 19px; }
-.login-card > .note { padding: 14px 28px 22px; }
+.login .panel h2::before { display: none; }
+.login .brand { padding: 0; justify-content: center; }
+.login .brand b { color: var(--ink); font-size: 22px; }
+.login .brand span { color: var(--muted); font-size: 12.5px; }
+.login .mark { width: 48px; height: 48px; border-radius: 14px; padding: 6px; background: var(--espresso); box-shadow: 0 8px 18px -8px rgba(43, 29, 20, .7); }
 .login .btns { display: block; }
 .login .btn { display: flex; width: 100%; min-height: 46px; font-size: 14.5px; }
 .pin-input { text-align: center; letter-spacing: .6em; font-size: 22px !important; font-weight: 700; font-family: var(--f-mono); padding-block: 12px !important; }
