@@ -2,7 +2,9 @@
 import { AccountGroup, CashCategory, NormalSide, PartyType, Prisma } from "@prisma/client";
 import prisma from "../prismaClient";
 import { SessionUser } from "../middleware/auth";
-import { badRequest, notFound } from "../utils/httpError";
+import { badRequest, locked, notFound } from "../utils/httpError";
+import { getActiveSettings, getFirstFiscalYear } from "./settingsService";
+import { openingFromPreviousYear } from "./ledgerService";
 import { parseAmount, toNum0 } from "../utils/money";
 import { fromISODate, toISODate } from "../utils/dates";
 import { logAudit } from "./auditService";
@@ -13,16 +15,38 @@ const CASH_FLOW_LINES = ["OP1", "OP2", "OP3", "OP4", "OP5", "OP6", "OP7", "IN1",
 const PARTY_TYPES = Object.values(PartyType) as string[];
 
 // ---------- akun ----------
+/** Saldo awal tahun dilihat. Tahun pertama: diinput (bisa diubah). Tahun berikutnya: saldo akhir tahun sebelumnya. */
 export async function listAccounts() {
+  const s = await getActiveSettings();
+  const firstYear = await getFirstFiscalYear();
+  const carried = s.fiscalYear > firstYear ? await openingFromPreviousYear(prisma, s.fiscalYear) : null;
   const rows = await prisma.account.findMany({
     orderBy: { code: "asc" },
     include: { _count: { select: { journalLines: true } } },
   });
   return rows.map((a) => ({
     id: a.id, code: a.code, name: a.name, group: a.group, reportLine: a.reportLine, normalSide: a.normalSide,
-    cashCategory: a.cashCategory, cashFlowLine: a.cashFlowLine, openingBalance: toNum0(a.openingBalance),
+    cashCategory: a.cashCategory, cashFlowLine: a.cashFlowLine,
+    openingBalance: carried ? carried[a.name] ?? 0 : toNum0(a.openingBalance),
+    openingEditable: !carried,
     description: a.description, isActive: a.isActive, isUsed: a._count.journalLines > 0,
   }));
+}
+
+/**
+ * Saldo awal hanya diinput untuk tahun buku pertama. Saldo itu terbawa ke tahun-tahun berikutnya, jadi
+ * tidak boleh diubah lagi bila tahun berikutnya sudah punya bulan yang ditutup.
+ */
+async function assertOpeningEditable() {
+  const s = await getActiveSettings();
+  const firstYear = await getFirstFiscalYear();
+  if (s.fiscalYear !== firstYear) {
+    throw badRequest(`Saldo awal ${s.fiscalYear} dihitung otomatis dari saldo akhir ${s.fiscalYear - 1} dan tidak bisa diubah. Perbaiki transaksi tahun ${s.fiscalYear - 1}.`);
+  }
+  const laterClosed = await prisma.setting.findFirst({ where: { fiscalYear: { gt: firstYear }, closedMonth: { gt: 0 } } });
+  if (laterClosed) {
+    throw locked(`Saldo awal ${firstYear} terbawa ke tahun buku ${laterClosed.fiscalYear} yang sudah punya bulan ditutup. Buka kembali bulan-bulan itu dulu.`);
+  }
 }
 
 export interface AccountInput {
@@ -95,7 +119,8 @@ export async function updateAccount(user: SessionUser, id: number, i: AccountInp
   const before = await prisma.account.findUnique({ where: { id } });
   if (!before) throw notFound("Akun tidak ditemukan.");
   const data = validateAccount(i, true);
-  const used = (await prisma.journalLine.count({ where: { accountId: id } })) > 0;
+  if (data.openingBalance !== undefined && data.openingBalance !== before.openingBalance) await assertOpeningEditable();
+  const used =(await prisma.journalLine.count({ where: { accountId: id } })) > 0;
   if (used && ((data.normalSide && data.normalSide !== before.normalSide) || (data.group && data.group !== before.group))) {
     throw badRequest("Akun yang sudah dipakai tidak boleh diubah kelompok atau saldo normalnya.");
   }
@@ -121,6 +146,7 @@ export async function listOpeningDetails() {
 export async function replaceOpeningDetails(user: SessionUser, accountId: number, rows: { partyId?: unknown; amount?: unknown }[]) {
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   if (!account) throw notFound("Akun tidak ditemukan.");
+  await assertOpeningEditable();
   if (!Array.isArray(rows)) throw badRequest("Rincian harus berupa daftar.");
   const data = rows.map((r) => {
     const partyId = Number(r.partyId);

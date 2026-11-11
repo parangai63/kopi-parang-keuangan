@@ -13,7 +13,10 @@ export default function DailySalesPage() {
   const today = todayJakarta();
   const { user } = useAuth();
   const closed = user?.closedMonth ?? 0;
-  const [month, setMonth] = useState(Number(today.slice(5, 7)));
+  // Tahun buku lain dari tahun kalender (mis. menyelesaikan Desember lalu): buka bulan pertama yang belum ditutup.
+  const [month, setMonth] = useState(
+    user && Number(today.slice(0, 4)) !== user.fiscalYear ? Math.min(closed + 1, 12) : Number(today.slice(5, 7)),
+  );
   const [selected, setSelected] = useState<string | null>(null);
   const { data, loading, error, reload } = useApi(() => dailyApi.month(month), [month]);
   const staff = useApi(() => dailyApi.staff(), []);

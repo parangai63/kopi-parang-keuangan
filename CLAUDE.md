@@ -56,6 +56,9 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 - Nominal selalu integer rupiah (BigInt di database), bukan float.
 - Jurnal OTOMATIS/PENYESUAIAN dibuat ulang mesin; jangan diinput atau diimpor.
 - Hapus = soft delete (`voided_at`); bulan yang ditutup terkunci (HTTP 423).
+- Tahun buku per permintaan: header `X-Fiscal-Year` → `getActiveSettings()` (AsyncLocalStorage, `utils/fiscalContext.ts`);
+  tanpa header = tahun terbaru. Saldo awal tahun ke-2 dst. dihitung dari saldo akhir Desember tahun sebelumnya
+  (`ledgerService.openingFromPreviousYear` + `carryForwardOpening`), tidak disimpan. Lihat spesifikasi Logika 13.
 - Setiap mutasi menulis `audit_logs`.
 - Kalau mengubah `backend/src/engine/`, jalankan `npm run check:patokan` sebelum selesai, dan samakan
   `frontend/src/utils/calcDay.ts` jika rumus omzet harian berubah.
@@ -66,4 +69,3 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 - Login email + kata sandi + 2FA untuk owner/admin (kodenya ada di `authService.loginWithPassword`, belum dipakai UI; sementara semua peran login PIN).
 - Akumulasi penyusutan awal tahun untuk aset sebelum 2026 (perlu kolom baru di `fixed_assets` + saldo awal
   Peralatan/Akumulasi; menunggu inventarisasi owner).
-- Pembuatan tahun buku baru (rollover 2027).

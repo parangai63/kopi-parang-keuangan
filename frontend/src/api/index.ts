@@ -113,6 +113,7 @@ export const closingApi = {
   close: (body: { ackRecurring: boolean; ackNotOkDays: boolean }) =>
     api<{ month: number; checks: { label: string; ok: boolean }[] }>("/closing/close", { method: "POST", body }),
   reopen: () => api<{ month: number }>("/closing/reopen", { method: "POST" }),
+  newYear: () => api<{ year: number }>("/closing/new-year", { method: "POST" }),
 };
 
 export const userApi = {

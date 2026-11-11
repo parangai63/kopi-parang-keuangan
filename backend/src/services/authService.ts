@@ -7,7 +7,7 @@ import prisma from "../prismaClient";
 import { SessionUser } from "../middleware/auth";
 import { HttpError, badRequest, notFound } from "../utils/httpError";
 import { logAudit } from "./auditService";
-import { getActiveSettings } from "./settingsService";
+import { getActiveSettings, getLatestSettings, listFiscalYears } from "./settingsService";
 
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
@@ -98,8 +98,13 @@ export async function getMe(id: number) {
   const u = await prisma.user.findUnique({ where: { id } });
   if (!u) throw notFound("Pengguna tidak ditemukan.");
   // Tahun buku & bulan tutup buku ikut dikirim untuk chip "Tutup buku s.d." di header (semua peran).
-  const s = await getActiveSettings();
-  return { id: u.id, name: u.name, email: u.email, role: u.role, totpEnabled: u.totpEnabled, fiscalYear: s.fiscalYear, closedMonth: s.closedMonth };
+  // fiscalYear/closedMonth = tahun yang sedang dilihat (header X-Fiscal-Year); fiscalYears untuk pemilih tahun.
+  // Tahun yang diminta sudah tidak ada (mis. pilihan lama di browser) → pakai tahun terbaru; UI akan menyesuaikan.
+  const [s, latest, fiscalYears] = await Promise.all([getActiveSettings().catch(() => getLatestSettings()), getLatestSettings(), listFiscalYears()]);
+  return {
+    id: u.id, name: u.name, email: u.email, role: u.role, totpEnabled: u.totpEnabled,
+    fiscalYear: s.fiscalYear, closedMonth: s.closedMonth, latestYear: latest.fiscalYear, fiscalYears,
+  };
 }
 
 /** Langkah 1 aktivasi 2FA: buat secret, tampilkan sebagai QR/otpauth URL di aplikasi authenticator. */

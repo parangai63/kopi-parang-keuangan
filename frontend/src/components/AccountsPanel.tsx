@@ -34,7 +34,10 @@ export default function AccountsPanel() {
   const [adding, setAdding] = useState<{ code: string; name: string; description: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const detailsOf = (id: number) => (details.data ?? []).filter((d) => d.accountId === id);
+  // Tahun buku kedua dst.: saldo awal = saldo akhir tahun sebelumnya (dihitung server), tidak bisa diubah.
+  const carried = accounts.data?.some((a) => a.openingEditable === false) ?? false;
+  const year = user?.fiscalYear;
+  const detailsOf = (id: number) => (carried ? [] : (details.data ?? []).filter((d) => d.accountId === id));
 
   function startEdit(a: Account) {
     setAdding(null);
@@ -48,7 +51,7 @@ export default function AccountsPanel() {
     e.preventDefault();
     if (!edit) return;
     const a = edit.account;
-    if (edit.openingBalance !== a.openingBalance && (user?.closedMonth ?? 0) > 0 &&
+    if (!carried && edit.openingBalance !== a.openingBalance && (user?.closedMonth ?? 0) > 0 &&
       !window.confirm("Saldo awal 1 Januari ikut mengubah semua laporan, termasuk bulan yang sudah ditutup. Lanjutkan?")) return;
     setBusy(true);
     try {
@@ -56,9 +59,9 @@ export default function AccountsPanel() {
         ...(a.isUsed ? {} : { name: edit.name }),
         description: edit.description || null,
         isActive: edit.isActive,
-        ...(isAutoEquity(a) ? {} : { openingBalance: edit.openingBalance ?? 0 }),
+        ...(isAutoEquity(a) || carried ? {} : { openingBalance: edit.openingBalance ?? 0 }),
       });
-      if (hasDetails(a)) {
+      if (hasDetails(a) && !carried) {
         if (edit.details.some((d) => d.partyId === "")) throw new Error("Pilih pihak untuk setiap baris rincian.");
         await masterApi.saveOpeningDetails(a.id, edit.details.map((d) => ({ partyId: Number(d.partyId), amount: d.amount })));
       }
@@ -99,6 +102,12 @@ export default function AccountsPanel() {
       title="Daftar akun & saldo awal"
       hint="Akun yang sudah dipakai tidak bisa dihapus atau diganti nama, hanya dinonaktifkan. Saldo awal Ekuitas Kopi Parang dihitung otomatis (aset − liabilitas per 1 Januari)."
     >
+      {carried && (
+        <p className="lock" role="status" style={{ marginBottom: 12 }}>
+          Saldo awal 1 Januari {year} dihitung otomatis dari saldo akhir 31 Desember {year ? year - 1 : ""} dan tidak bisa diketik.
+          Untuk mengoreksinya, perbaiki transaksi tahun {year ? year - 1 : ""} (pilih tahun itu di kanan atas).
+        </p>
+      )}
       {canEdit && !adding && !edit && (
         <div className="btns" style={{ marginTop: 0, marginBottom: 12 }}>
           <button className="btn ghost sm" onClick={() => setAdding({ code: "", name: "", description: "" })}>+ Akun beban baru</button>
@@ -131,7 +140,7 @@ export default function AccountsPanel() {
               <input value={edit.name} disabled={edit.account.isUsed} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
             </Field>
             <Field label="Keterangan"><input value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
-            {!isAutoEquity(edit.account) && (
+            {!isAutoEquity(edit.account) && !carried && (
               <Field label="Saldo awal 1 Jan">
                 <MoneyInput value={edit.openingBalance} onChange={(v) => setEdit({ ...edit, openingBalance: v })} />
               </Field>
@@ -139,7 +148,7 @@ export default function AccountsPanel() {
           </fieldset>
           <label className="check"><input type="checkbox" checked={edit.isActive} onChange={(e) => setEdit({ ...edit, isActive: e.target.checked })} /> Akun aktif (bisa dipilih di jurnal)</label>
 
-          {hasDetails(edit.account) && (
+          {hasDetails(edit.account) && !carried && (
             <div style={{ marginTop: 14 }}>
               <p className="note">Rincian saldo awal per pihak (siapa yang berutang / kepada siapa kita berutang per 1 Januari).</p>
               {edit.details.map((d, i) => (
@@ -181,7 +190,7 @@ export default function AccountsPanel() {
             <thead>
               <tr>
                 <th>Kode</th><th>Nama akun</th><th>Kelompok</th><th>Normal</th><th>Kategori kas</th><th>Baris arus kas</th>
-                <th className="r">Saldo awal 1 Jan</th><th /><th />
+                <th className="r">Saldo awal 1 Jan {year}</th><th /><th />
               </tr>
             </thead>
             <tbody>

@@ -83,6 +83,11 @@ main { min-width: 0; padding-inline: 28px; padding-block: 0 48px; }
 .top-right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 7px 13px; border-radius: 99px; background: var(--glass); border: 1px solid var(--glass-border); box-shadow: var(--shadow); color: var(--ink); font-weight: 600; white-space: nowrap; }
 .chip > svg { width: 15px; height: 15px; color: var(--accent); }
+/* Pemilih tahun buku di header; kuning saat melihat tahun lama (bukan tahun berjalan). */
+.chip.year-pick { padding-block: 4px; color: var(--muted); }
+.chip.year-pick select { cursor: pointer; font: inherit; font-weight: 750; color: var(--ink); background: transparent; border: 0; padding: 3px 2px; border-radius: 8px; width: auto; min-width: 0; }
+.chip.year-pick select:focus-visible { outline: 2px solid var(--accent); }
+.chip.year-pick.old { background: var(--warn-soft); border-color: rgba(230, 150, 20, .35); color: var(--warn); }
 .seg { display: inline-flex; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 99px; padding: 3px; }
 .seg button { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 14px; border-radius: 99px; font-size: 13px; color: var(--muted); font-weight: 600; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--accent-text); box-shadow: 0 2px 8px -2px rgba(70, 45, 25, .2); }

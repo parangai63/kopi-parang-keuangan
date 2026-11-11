@@ -16,11 +16,24 @@ export function Avatar({ name }: { name: string }) {
 
 /** Header halaman: baris utilitas (chip tutup buku, pengguna, keluar), lalu judul + sub dengan tombol aksi halaman di kanan. */
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, switchYear } = useAuth();
+  // Pemilih tahun buku muncul untuk owner/admin bila sudah ada lebih dari satu tahun buku.
+  const canPickYear = user && user.role !== "KASIR" && user.fiscalYears.length > 1;
+  const oldYear = user && user.fiscalYear !== user.latestYear;
   return (
     <header className="top">
       {user && (
         <div className="top-util">
+          {canPickYear && (
+            <label className={`chip year-pick${oldYear ? " old" : ""}`} title={oldYear ? `Sedang melihat tahun buku lama. Tahun berjalan: ${user.latestYear}.` : "Tahun buku yang dilihat"}>
+              Tahun buku
+              <select value={user.fiscalYear} onChange={(e) => switchYear(Number(e.target.value))} aria-label="Pilih tahun buku">
+                {[...user.fiscalYears].reverse().map((y) => (
+                  <option key={y.year} value={y.year}>{y.year}{y.year === user.latestYear ? " (berjalan)" : ""}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <span className="chip"><CalendarCheck aria-hidden="true" />Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
           <span className="user-pill" title="Masuk sebagai">
             <Avatar name={user.name} />

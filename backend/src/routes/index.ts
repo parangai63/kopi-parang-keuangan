@@ -79,6 +79,7 @@ apiRoutes.put("/closing/tax-filing/:month", staff, h(ops.putTaxFiling));
 apiRoutes.put("/closing/ops-figures/:month", staff, h(ops.putOpsFigures));
 apiRoutes.post("/closing/close", ownerOnly, h(ops.postClose));
 apiRoutes.post("/closing/reopen", ownerOnly, h(ops.postReopen));
+apiRoutes.post("/closing/new-year", ownerOnly, h(ops.postNewYear));
 
 // Laporan (hanya baca)
 apiRoutes.get("/reports/dashboard", staff, h(report.getDashboard));

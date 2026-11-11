@@ -1,13 +1,20 @@
 import { FormEvent, useEffect, useState } from "react";
 import { journalApi, JournalInput } from "../api";
 import { todayJakarta } from "../utils/format";
+import { useAuth } from "../context/AuthContext";
 import { ErrorBox, Field, Loading, Panel } from "./ui";
 import MoneyInput from "./MoneyInput";
 import AccountSelect from "./AccountSelect";
 import type { Account, EventItem, Party } from "../types";
 
-const EMPTY = (): JournalInput => ({
-  date: todayJakarta(), debitAccountId: "", creditAccountId: "", amount: null,
+/** Tanggal bawaan: hari ini, atau 31 Desember bila sedang melihat tahun buku lain (mis. koreksi tahun lalu). */
+const defaultDate = (fiscalYear?: number) => {
+  const t = todayJakarta();
+  return fiscalYear && Number(t.slice(0, 4)) !== fiscalYear ? `${fiscalYear}-12-31` : t;
+};
+
+const EMPTY = (fiscalYear?: number): JournalInput => ({
+  date: defaultDate(fiscalYear), debitAccountId: "", creditAccountId: "", amount: null,
   description: "", receiptNo: "", eventId: "", partyId: "",
 });
 
@@ -24,7 +31,8 @@ export default function JournalForm({
   onSaved: (voucherNo: string, id: number) => void;
   onCancel: () => void;
 }) {
-  const [v, setV] = useState<JournalInput>(EMPTY);
+  const { user } = useAuth();
+  const [v, setV] = useState<JournalInput>(() => EMPTY(user?.fiscalYear));
   const [voucherNo, setVoucherNo] = useState("");
   const [loading, setLoading] = useState(!!editId);
   const [loadErr, setLoadErr] = useState("");

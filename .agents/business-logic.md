@@ -84,6 +84,9 @@ Akun baru dari UI dibatasi beban usaha kode 61xx: Laba Rugi & Neraca menyusun po
 * **Bulan yang ditutup terkunci** (`month <= settings.closedMonth`): tidak boleh ada tambah/ubah/batal
   data bertanggal di bulan itu → HTTP 423. Hanya owner yang bisa membuka kembali, dan itu tercatat.
 * `closedMonth` hanya berubah lewat wizard Tutup Buku / buka kembali — tidak lewat PUT `/settings`.
+* **Antar tahun buku** (spesifikasi Logika 13): saldo awal tahun ke-2 dst. = saldo akhir Desember tahun lalu,
+  dihitung, tidak disimpan. Bulan di tahun Y baru bisa ditutup setelah Desember Y−1 ditutup; bulan Y−1 tidak bisa
+  dibuka kembali selama tahun Y punya bulan ditutup. Tahun baru dibuat owner lewat `POST /closing/new-year`.
 * **Soft delete saja** (`voided_at`) untuk jurnal & aset. Tidak ada hard delete data transaksi.
 * Akun yang sudah dipakai tidak boleh dihapus, diganti kelompok, saldo normal, atau namanya — hanya
   dinonaktifkan (mesin merujuk akun inti berdasarkan nama, lihat `ACC` di `engine.ts`).

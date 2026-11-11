@@ -34,7 +34,8 @@ function AppContent() {
   return (
     <div className="app">
       <Sidebar active={page} onNavigate={(p) => { setPage(p); window.scrollTo(0, 0); }} />
-      <main>
+      {/* key: ganti tahun buku → semua halaman dipasang ulang dan memuat data tahun itu. */}
+      <main key={user.fiscalYear}>
         {(() => {
           switch (page) {
             case "kasir":

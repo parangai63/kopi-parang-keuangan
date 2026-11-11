@@ -10,6 +10,8 @@ export type DayStatus = "" | "Belum direalisasi" | "EDC belum settle" | "Cek sel
 
 export interface EngineSettings {
   year: number;
+  /** Tahun buku pertama di aplikasi (saldo awalnya diinput, tahun berikutnya dihitung). Default = year. */
+  firstYear?: number;
   /** 0–12 */
   closedMonth: number;
   pbjtRate: number;
@@ -163,6 +165,9 @@ export interface AssetSchedule {
   depreciationStart: string;
   /** index 1–12 */
   schedule: number[];
+  /** Akumulasi penyusutan s.d. 31 Desember tahun sebelumnya. */
+  priorAccumulated: number;
+  /** Akumulasi s.d. bulan tutup buku = priorAccumulated + Σ schedule. */
   accumulated: number;
   bookValue: number;
 }

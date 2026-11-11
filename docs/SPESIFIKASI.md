@@ -281,6 +281,15 @@ Akun pendapatan dibaca sebagai −mutasi, akun beban sebagai +mutasi.
 - Selisih omzet = `sales_total` (Parang-ops) − omzet tercatat (Σ total\_pos). Hanya dihitung jika `sales_total` diisi; ditandai jika |selisih| > `ops_sales_tolerance_pct` × omzet tercatat.
 - Kedua cek ini **tidak** memblokir tutup buku. Hasilnya tampil di wizard dan di riwayat cek per bulan, dan owner bisa menambah catatan.
 
+### 13. Tahun buku baru (rollover)
+
+- Owner membuat tahun buku berikutnya dari wizard Tutup Buku: mulai 1 Januari tahun itu, atau lebih awal bila Desember tahun berjalan sudah ditutup. Baris `settings` baru disalin dari tahun terakhir dengan `closed_month` = 0; teks CALK (`report_notes`) ikut disalin.
+- Saldo awal tahun buku pertama diinput di Daftar Akun (`accounts.opening_balance`). Saldo awal tahun berikutnya **tidak disimpan**: dihitung setiap kali dari saldo akhir 31 Desember tahun sebelumnya (dihitung s.d. Desember), sehingga koreksi tahun lalu otomatis terbawa.
+  - Aset & liabilitas: saldo akhir 31 Desember. Pendapatan, beban, dan Prive: 0. Ekuitas Kopi Parang: dihitung seperti biasa (aset − liabilitas), sehingga ekuitas awal = ekuitas akhir tahun lalu.
+  - Aset tetap terus disusutkan sesuai jadwalnya; akumulasi per aset = penyusutan tahun-tahun sebelumnya + tahun berjalan.
+- Bulan di tahun Y baru boleh ditutup setelah Desember Y−1 ditutup. Bulan di tahun Y−1 tidak boleh dibuka kembali selama tahun Y punya bulan yang ditutup. Saldo awal tahun pertama tidak bisa diubah bila tahun berikutnya punya bulan yang ditutup.
+- Owner/admin memilih tahun buku yang dilihat di header (default: tahun terbaru). Input dan laporan mengikuti tahun yang dipilih; kasir selalu di tahun terbaru.
+
 ## Alur kerja
 
 Data masuk setiap hari dari kasir dan admin, lalu owner menutup buku sekali sebulan. Laporan resmi hanya memuat bulan yang sudah ditutup.

@@ -7,6 +7,7 @@ import { acct, BULAN, num, tgl } from "../utils/format";
 import { CalcList, CheckList, ErrorBox, Field, Loading, PageHeader, Panel, Pill, statusTone } from "../components/ui";
 import MoneyInput from "../components/MoneyInput";
 import OpsHistory from "../components/closing/OpsHistory";
+import NewYearPanel from "../components/closing/NewYearPanel";
 
 /** Satu langkah wizard; nomornya dari counter CSS .steps/.step (rancangan original). */
 function Step({ title, children }: { title: string; children: ReactNode }) {
@@ -58,9 +59,16 @@ export default function ClosingPage() {
     }
   };
 
+  const Y = p.years;
+  const nextYearLocked = (Y.nextYearClosedMonth ?? 0) > 0;
   const reopen = p.closedMonth > 0 && isOwner && (
     <Panel title={`Buka kembali ${BULAN[p.closedMonth - 1]}`} hint="Dipakai jika ada koreksi di bulan yang sudah ditutup. Tercatat di riwayat perubahan.">
-      {confirmReopen ? (
+      {nextYearLocked ? (
+        <p className="note">
+          Tidak bisa: tahun buku {p.year + 1} sudah ditutup s.d. {BULAN[Y.nextYearClosedMonth! - 1]}, dan saldo awalnya berasal dari {p.year}.
+          Buka kembali bulan-bulan {p.year + 1} dulu.
+        </p>
+      ) : confirmReopen ? (
         <div className="btns">
           <span className="note">Yakin membuka kembali {BULAN[p.closedMonth - 1]} {p.year}?</span>
           <button className="btn danger" disabled={busy} onClick={() => run(closingApi.reopen, `${BULAN[p.closedMonth - 1]} ${p.year} dibuka kembali.`, true).then(() => setConfirmReopen(false))}>Ya, buka kembali</button>
@@ -72,12 +80,17 @@ export default function ClosingPage() {
     </Panel>
   );
 
+  // Panel tahun buku baru: hanya di tahun terbaru, mulai terlihat menjelang akhir tahun.
+  const newYear = Y.newYear && (Y.newYear.canStart || p.closedMonth >= 10) && <NewYearPanel info={Y.newYear} />;
+  const prevOpen = Y.previousYearOpen;
+
   if (!p.nextMonth) {
     return (
       <>
         <PageHeader title="Tutup buku" subtitle="Tahun buku sudah ditutup seluruhnya" />
         <div className="grid">
           <p className="note">Semua bulan sudah ditutup.</p>
+          {newYear}
           {reopen}
           <OpsHistory rows={p.history} closedMonth={p.closedMonth} tolerances={p.tolerances} />
         </div>
@@ -91,12 +104,21 @@ export default function ClosingPage() {
   const oc = p.opsCheck!;
   const opsSaved = p.opsFigures != null;
   const ackDays = !days.length || ack.days;
-  const ready = ack.recurring && ackDays && opsSaved;
-  const need = [!ack.recurring && "centang tagihan rutin", !ackDays && "konfirmasi hari yang belum OK", !opsSaved && "simpan nilai stok dan pembelian dari Parang-ops"].filter(Boolean);
+  const ready = ack.recurring && ackDays && opsSaved && !prevOpen;
+  const need = [
+    prevOpen && `tutup buku ${prevOpen.year} s.d. Desember dulu`,
+    !ack.recurring && "centang tagihan rutin", !ackDays && "konfirmasi hari yang belum OK", !opsSaved && "simpan nilai stok dan pembelian dari Parang-ops",
+  ].filter(Boolean);
 
   return (
     <>
       <PageHeader title="Tutup buku" subtitle={`Bulan berikutnya: ${nm} ${p.year}`} />
+      {prevOpen && (
+        <div className="lock" role="status" style={{ marginBottom: 16 }}>
+          Tahun buku {prevOpen.year} baru ditutup s.d. {prevOpen.closedMonth ? BULAN[prevOpen.closedMonth - 1] : "—"}. Saldo awal {p.year} masih sementara,
+          dan {nm} {p.year} baru bisa ditutup setelah Desember {prevOpen.year} ditutup (pilih tahun {prevOpen.year} di kanan atas).
+        </div>
+      )}
       <div className="two">
         <Panel>
           <div className="steps">
@@ -193,6 +215,7 @@ export default function ClosingPage() {
             {!opsSaved && <p className="note" style={{ marginTop: 8 }}>Penyesuaian persediaan muncul setelah nilai stok Parang-ops disimpan.</p>}
             <div style={{ marginTop: 14 }}><CheckList checks={p.checks ?? []} /></div>
           </Panel>
+          {newYear}
           {reopen}
         </div>
       </div>

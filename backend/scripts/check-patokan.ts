@@ -2,7 +2,7 @@
 // plus skenario tutup buku Okt–Nov dengan angka Parang-ops. Padanan scripts/check-patokan.js
 // di root repo (yang menguji prototype/engine.js).
 // Jalankan: cd backend && npm run check:patokan
-import { compute } from "../src/engine/engine";
+import { carryForwardOpening, compute } from "../src/engine/engine";
 import type { EngineInput } from "../src/engine/types";
 import { compareWithMutasi, readExcelV2 } from "../prisma/excelData";
 
@@ -64,5 +64,30 @@ check("Pembelian bahan Okt menurut jurnal Keuangan", R2.opsCheck[10].financePurc
 flag("Tanda selisih pembelian: Okt dalam toleransi, Nov melewati", !R2.opsCheck[10].purchaseFlag && R2.opsCheck[11].purchaseFlag);
 for (const c of R2.checks.filter((c) => c.level !== "warn")) flag(`Cek: ${c.label}`, c.ok);
 
-console.log(fail ? `\n${fail} angka tidak cocok.` : "\nSemua angka cocok dengan Excel v2, dan skenario Parang-ops lolos.");
+console.log("\n== Skenario: tahun buku baru 2027 (saldo awal dari saldo akhir Desember 2026) ==");
+const s3: EngineInput = readExcelV2().input;
+s3.settings.closedMonth = 12;
+const R3 = compute(s3);
+const open = carryForwardOpening(R3);
+const y2027: EngineInput = {
+  ...s3,
+  settings: { ...s3.settings, year: 2027, firstYear: 2026, closedMonth: 12 },
+  accounts: s3.accounts.map((a) => ({ ...a, openingBalance: open[a.name] })),
+  daily: [], journal: [], taxFilings: {}, ops: {},
+};
+const R4 = compute(y2027);
+const B3 = R3.balanceSheet.closing;
+const O4 = R4.balanceSheet.opening;
+check("Total aset 1 Jan 2027 = 31 Des 2026", O4.totalAssets, Math.round(B3.totalAssets));
+check("Total liabilitas 1 Jan 2027 = 31 Des 2026", O4.totalLiabilities, Math.round(B3.totalLiabilities));
+check("Total ekuitas 1 Jan 2027 = 31 Des 2026", O4.totalEquity, Math.round(B3.totalEquity));
+check("Ekuitas awal (lap. perubahan ekuitas) 2027", R4.equity[1].opening, Math.round(B3.totalEquity));
+check("Kas 1 Jan 2027 = kas 31 Des 2026", R4.cashFlow[1].opening, Math.round(R3.cashFlow[12].closing));
+check("Saldo awal Prive 2027", open["Prive"], 0);
+check("Saldo awal pendapatan cafe 2027", open["Pendapatan Cafe"] ?? 0, 0);
+const deprec2027 = R4.assets.reduce((a, x) => a + x.schedule.reduce((p, v) => p + v, 0), 0);
+check("Akumulasi penyusutan 31 Des 2027 = 2026 + penyusutan 2027", -R4.balanceSheet.closing.accumulatedDepreciation, -B3.accumulatedDepreciation + deprec2027);
+for (const c of R4.checks.filter((c) => c.level !== "warn")) flag(`Cek 2027: ${c.label}`, c.ok);
+
+console.log(fail ? `\n${fail} angka tidak cocok.` : "\nSemua angka cocok dengan Excel v2, dan skenario Parang-ops & tahun baru lolos.");
 process.exit(fail ? 1 : 0);
