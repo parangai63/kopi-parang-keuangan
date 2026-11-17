@@ -72,6 +72,25 @@ export const assetApi = {
   void: (id: number) => api<Id>(`/assets/${id}/void`, { method: "POST" }),
 };
 
+/** Jumlah data yang akan dikosongkan (lihat backend/src/services/resetService.ts). */
+export interface ResetCounts {
+  firstYear: number;
+  closedMonth: number;
+  dailySales: number; staffBons: number; manualJournals: number; systemJournals: number; assets: number;
+  taxFilings: number; opsFigures: number; closings: number; openingDetails: number;
+  parties: number; events: number; eventNotes: number;
+  /** jumlah akun yang saldo awalnya bukan 0 */
+  openingBalances: number;
+  extraYears: number[];
+}
+
+/** Reset data: kosongkan semua transaksi (owner). */
+export const resetApi = {
+  preview: () => api<ResetCounts & { empty: boolean }>("/reset/preview"),
+  backup: () => api<unknown>("/reset/backup"),
+  run: (body: { confirm: string; pin: string }) => api<ResetCounts>("/reset", { method: "POST", body }),
+};
+
 export const masterApi = {
   settings: () => api<Settings>("/settings"),
   saveSettings: (body: Partial<Settings>) => api<Settings>("/settings", { method: "PUT", body }),

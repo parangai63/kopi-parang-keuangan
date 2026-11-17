@@ -290,6 +290,13 @@ Akun pendapatan dibaca sebagai −mutasi, akun beban sebagai +mutasi.
 - Bulan di tahun Y baru boleh ditutup setelah Desember Y−1 ditutup. Bulan di tahun Y−1 tidak boleh dibuka kembali selama tahun Y punya bulan yang ditutup. Saldo awal tahun pertama tidak bisa diubah bila tahun berikutnya punya bulan yang ditutup.
 - Owner/admin memilih tahun buku yang dilihat di header (default: tahun terbaru). Input dan laporan mengikuti tahun yang dipilih; kasir selalu di tahun terbaru.
 
+### 14. Reset data (khusus owner)
+
+- Di Pengaturan, owner bisa mengosongkan SEMUA data transaksi (mis. data dummy/uji coba sebelum memakai data asli). Ini satu-satunya pengecualian dari aturan soft delete.
+- Dihapus: omzet harian & bon, semua jurnal (termasuk arsip jurnal sistem), aset tetap, SSPD, angka Parang-ops, riwayat tutup buku, rincian saldo awal per pihak, pihak, event & catatannya, tahun buku selain yang pertama. Saldo awal semua akun menjadi 0 dan bulan tutup buku menjadi 0.
+- Tetap: daftar akun, pengguna & PIN, pengaturan tahun buku pertama, teks CALK tahun pertama, dan audit log.
+- Pengaman: pratinjau jumlah data, wajib unduh cadangan JSON, ketik `RESET` + PIN owner, satu transaksi database, reset dicatat di audit log. Bisa dimatikan di server dengan `KPK_ALLOW_RESET=0`.
+
 ## Alur kerja
 
 Data masuk setiap hari dari kasir dan admin, lalu owner menutup buku sekali sebulan. Laporan resmi hanya memuat bulan yang sudah ditutup.

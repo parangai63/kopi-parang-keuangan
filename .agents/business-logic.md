@@ -88,6 +88,9 @@ Akun baru dari UI dibatasi beban usaha kode 61xx: Laba Rugi & Neraca menyusun po
   dihitung, tidak disimpan. Bulan di tahun Y baru bisa ditutup setelah Desember Y−1 ditutup; bulan Y−1 tidak bisa
   dibuka kembali selama tahun Y punya bulan ditutup. Tahun baru dibuat owner lewat `POST /closing/new-year`.
 * **Soft delete saja** (`voided_at`) untuk jurnal & aset. Tidak ada hard delete data transaksi.
+  Satu-satunya pengecualian: **Reset data** (Pengaturan, khusus owner; `resetService.ts`) yang mengosongkan semua
+  data transaksi, dengan pratinjau, cadangan JSON, konfirmasi RESET + PIN, dan audit log tetap utuh.
+  Bisa dimatikan dengan `KPK_ALLOW_RESET=0`.
 * Akun yang sudah dipakai tidak boleh dihapus, diganti kelompok, saldo normal, atau namanya — hanya
   dinonaktifkan (mesin merujuk akun inti berdasarkan nama, lihat `ACC` di `engine.ts`).
 * Validasi jurnal: akun debet & kredit wajib dan tidak sama, nominal > 0, tanggal di tahun buku aktif

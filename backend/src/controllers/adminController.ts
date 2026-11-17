@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import prisma from "../prismaClient";
 import * as auth from "../services/authService";
 import * as master from "../services/masterDataService";
+import * as reset from "../services/resetService";
 import { clearSession, issueSession } from "../middleware/auth";
 import { getActiveSettings, serializeSettings } from "../services/settingsService";
 import { logAudit } from "../services/auditService";
@@ -140,4 +141,18 @@ export async function putEventNote(req: Request, res: Response) {
 }
 export async function postEvent(req: Request, res: Response) {
   res.status(201).json({ id: await master.createEvent(req.user!, req.body ?? {}) });
+}
+
+// ---------- reset data: kosongkan semua transaksi (owner) ----------
+export async function getResetPreview(_req: Request, res: Response) {
+  res.json(await reset.resetPreview());
+}
+export async function getResetBackup(_req: Request, res: Response) {
+  const data = await reset.resetBackup();
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  res.setHeader("Content-Disposition", `attachment; filename="cadangan-reset-${stamp}.json"`);
+  res.json(data);
+}
+export async function postReset(req: Request, res: Response) {
+  res.json(await reset.executeReset(req.user!, req.body ?? {}));
 }

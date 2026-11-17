@@ -100,3 +100,6 @@ apiRoutes.get("/users", ownerOnly, h(admin.getUsers));
 apiRoutes.post("/users", ownerOnly, h(admin.postUser));
 apiRoutes.put("/users/:id", ownerOnly, h(admin.putUser));
 apiRoutes.get("/audit-logs", ownerOnly, h(admin.getAuditLogs));
+apiRoutes.get("/reset/preview", ownerOnly, h(admin.getResetPreview));
+apiRoutes.get("/reset/backup", ownerOnly, h(admin.getResetBackup));
+apiRoutes.post("/reset", ownerOnly, h(admin.postReset));

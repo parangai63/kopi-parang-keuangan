@@ -55,7 +55,8 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 
 - Nominal selalu integer rupiah (BigInt di database), bukan float.
 - Jurnal OTOMATIS/PENYESUAIAN dibuat ulang mesin; jangan diinput atau diimpor.
-- Hapus = soft delete (`voided_at`); bulan yang ditutup terkunci (HTTP 423).
+- Hapus = soft delete (`voided_at`); bulan yang ditutup terkunci (HTTP 423). Pengecualian satu-satunya: Reset data
+  (`services/resetService.ts`, owner) yang mengosongkan semua transaksi; audit log tidak pernah dihapus.
 - Tahun buku per permintaan: header `X-Fiscal-Year` → `getActiveSettings()` (AsyncLocalStorage, `utils/fiscalContext.ts`);
   tanpa header = tahun terbaru. Saldo awal tahun ke-2 dst. dihitung dari saldo akhir Desember tahun sebelumnya
   (`ledgerService.openingFromPreviousYear` + `carryForwardOpening`), tidak disimpan. Lihat spesifikasi Logika 13.

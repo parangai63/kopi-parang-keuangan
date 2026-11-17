@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { BULAN } from "../utils/format";
 import { ErrorBox, Field, Loading, PageHeader, Panel } from "../components/ui";
 import AccountsPanel from "../components/AccountsPanel";
+import ResetPanel from "../components/ResetPanel";
 import MoneyInput from "../components/MoneyInput";
 import type { Settings } from "../types";
 
@@ -79,6 +80,7 @@ export default function SettingsPage() {
         )}
 
         <AccountsPanel />
+        {canEdit && <ResetPanel />}
       </div>
     </>
   );
