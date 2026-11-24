@@ -59,14 +59,17 @@ apiRoutes.post("/assets/:id/void", ownerOnly, h(ops.postAssetVoid));
 apiRoutes.get("/parties", staff, h(admin.getParties));
 apiRoutes.post("/parties", staff, h(admin.postParty));
 apiRoutes.put("/parties/:id", staff, h(admin.putParty));
+apiRoutes.delete("/parties/:id", staff, h(admin.deleteParty));
 apiRoutes.get("/events", staff, h(admin.getEventList));
 apiRoutes.post("/events", staff, h(admin.postEvent));
+apiRoutes.delete("/events/:id", staff, h(admin.deleteEvent));
 apiRoutes.put("/events/:id/note", staff, h(admin.putEventNote));
 
 // Daftar akun & pengaturan: admin lihat, owner ubah.
 apiRoutes.get("/accounts", staff, h(admin.getAccounts));
 apiRoutes.post("/accounts", ownerOnly, h(admin.postAccount));
 apiRoutes.put("/accounts/:id", ownerOnly, h(admin.putAccount));
+apiRoutes.delete("/accounts/:id", ownerOnly, h(admin.deleteAccount));
 apiRoutes.get("/opening-details", staff, h(admin.getOpeningDetails));
 apiRoutes.put("/accounts/:id/opening-details", ownerOnly, h(admin.putOpeningDetails));
 apiRoutes.get("/settings", staff, h(admin.getSettings));

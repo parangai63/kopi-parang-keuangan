@@ -8,6 +8,7 @@ import { openingFromPreviousYear } from "./ledgerService";
 import { parseAmount, toNum0 } from "../utils/money";
 import { fromISODate, toISODate } from "../utils/dates";
 import { logAudit } from "./auditService";
+import { ACC } from "../engine/engine";
 
 const ACCOUNT_GROUPS = Object.values(AccountGroup) as string[];
 const CASH_CATEGORIES = Object.values(CashCategory) as string[];
@@ -30,6 +31,7 @@ export async function listAccounts() {
     openingBalance: carried ? carried[a.name] ?? 0 : toNum0(a.openingBalance),
     openingEditable: !carried,
     description: a.description, isActive: a.isActive, isUsed: a._count.journalLines > 0,
+    isCustom: isCustomAccount(a),
   }));
 }
 
@@ -133,6 +135,38 @@ export async function updateAccount(user: SessionUser, id: number, i: AccountInp
   return id;
 }
 
+/** Akun bawaan (35 akun Excel v2, beban s.d. 6111) tidak bisa dihapus; hanya akun beban 61xx tambahan (6112 dst.). */
+const isCustomAccount = (a: { code: string; group: string; name: string }) =>
+  a.group === "BEBAN" && /^61\d{2}$/.test(a.code) && a.code > "6111" && !(Object.values(ACC) as string[]).includes(a.name);
+
+/** Hasil hapus opsi dari dropdown: dihapus permanen, atau dinonaktifkan karena sudah dipakai data lain. */
+export type RemoveResult = { id: number; removed: "deleted" | "deactivated"; message: string };
+
+/**
+ * Hapus akun beban tambahan. Belum dipakai → dihapus permanen. Sudah dipakai (jurnal, saldo awal, aset) →
+ * dinonaktifkan saja supaya riwayat & laporan tetap utuh; akun tidak muncul lagi di dropdown.
+ */
+export async function removeAccount(user: SessionUser, id: number): Promise<RemoveResult> {
+  const before = await prisma.account.findUnique({
+    where: { id },
+    include: { _count: { select: { journalLines: true, openingBalanceDetails: true, fixedAssets: true } } },
+  });
+  if (!before) throw notFound("Akun tidak ditemukan.");
+  if (!isCustomAccount(before)) throw badRequest(`Akun bawaan "${before.name}" tidak bisa dihapus. Nonaktifkan lewat Pengaturan › Daftar akun bila tidak dipakai.`);
+  const { _count, ...row } = before;
+  const used = _count.journalLines + _count.openingBalanceDetails + _count.fixedAssets > 0 || row.openingBalance !== 0n;
+  if (used) {
+    const after = await prisma.account.update({ where: { id }, data: { isActive: false } });
+    await logAudit(prisma, { userId: user.id, tableName: "accounts", recordId: id, action: "UPDATE", before: row, after });
+    return { id, removed: "deactivated", message: `Akun "${row.name}" sudah dipakai, jadi dinonaktifkan (tidak muncul lagi di pilihan). Riwayatnya tetap ada.` };
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.account.delete({ where: { id } });
+    await logAudit(tx, { userId: user.id, tableName: "accounts", recordId: id, action: "VOID", before: row });
+  });
+  return { id, removed: "deleted", message: `Akun "${row.name}" dihapus.` };
+}
+
 // ---------- rincian saldo awal per pihak (sheet AKUN, bawah) ----------
 export async function listOpeningDetails() {
   const rows = await prisma.openingBalanceDetail.findMany({
@@ -204,6 +238,29 @@ export async function upsertParty(
   return row.id;
 }
 
+/**
+ * Hapus pihak. Belum dipakai → dihapus permanen. Sudah dipakai (jurnal, bon karyawan, rincian saldo awal) →
+ * dinonaktifkan supaya riwayat tetap utuh; pihak tidak muncul lagi di dropdown.
+ */
+export async function removeParty(user: SessionUser, id: number): Promise<RemoveResult> {
+  const before = await prisma.party.findUnique({
+    where: { id },
+    include: { _count: { select: { journalEntries: true, staffBons: true, openingBalanceDetails: true } } },
+  });
+  if (!before) throw notFound("Pihak tidak ditemukan.");
+  const { _count, ...row } = before;
+  if (_count.journalEntries + _count.staffBons + _count.openingBalanceDetails > 0) {
+    const after = await prisma.party.update({ where: { id }, data: { isActive: false } });
+    await logAudit(prisma, { userId: user.id, tableName: "parties", recordId: id, action: "UPDATE", before: row, after });
+    return { id, removed: "deactivated", message: `"${row.name}" sudah dipakai, jadi dinonaktifkan (tidak muncul lagi di pilihan). Riwayatnya tetap ada.` };
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.party.delete({ where: { id } });
+    await logAudit(tx, { userId: user.id, tableName: "parties", recordId: id, action: "VOID", before: row });
+  });
+  return { id, removed: "deleted", message: `"${row.name}" dihapus.` };
+}
+
 // ---------- event ----------
 export async function listEvents() {
   const rows = await prisma.event.findMany({ orderBy: [{ startDate: "asc" }, { name: "asc" }] });
@@ -235,4 +292,20 @@ export async function createEvent(user: SessionUser, i: { name?: string; startDa
   });
   await logAudit(prisma, { userId: user.id, tableName: "events", recordId: row.id, action: "CREATE", after: row });
   return row.id;
+}
+
+/** Hapus event yang belum dipakai di jurnal mana pun (event tidak punya status nonaktif). Catatannya ikut terhapus. */
+export async function removeEvent(user: SessionUser, id: number): Promise<RemoveResult> {
+  const before = await prisma.event.findUnique({ where: { id }, include: { eventNotes: true, _count: { select: { journalEntries: true } } } });
+  if (!before) throw notFound("Event tidak ditemukan.");
+  const { _count, ...row } = before;
+  if (_count.journalEntries > 0) {
+    throw badRequest(`Event "${row.name}" sudah dipakai di ${_count.journalEntries} transaksi jurnal, jadi tidak bisa dihapus. Lepaskan tag event dari transaksi itu dulu.`);
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.eventNote.deleteMany({ where: { eventId: id } });
+    await tx.event.delete({ where: { id } });
+    await logAudit(tx, { userId: user.id, tableName: "events", recordId: id, action: "VOID", before: row });
+  });
+  return { id, removed: "deleted", message: `Event "${row.name}" dihapus.` };
 }

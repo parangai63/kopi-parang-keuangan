@@ -7,6 +7,8 @@ import type {
 } from "../types";
 
 type Id = { id: number };
+/** Hasil hapus opsi master: dihapus permanen, atau dinonaktifkan karena sudah dipakai. */
+export type RemoveResult = { id: number; removed: "deleted" | "deactivated"; message: string };
 
 export const authApi = {
   me: () => api<{ user: Me }>("/auth/me"),
@@ -97,15 +99,18 @@ export const masterApi = {
   accounts: () => api<Account[]>("/accounts"),
   saveAccount: (id: number, body: Partial<Account>) => api<Id>(`/accounts/${id}`, { method: "PUT", body }),
   createAccount: (body: Partial<Account>) => api<Id>("/accounts", { method: "POST", body }),
+  removeAccount: (id: number) => api<RemoveResult>(`/accounts/${id}`, { method: "DELETE" }),
   openingDetails: () => api<OpeningDetail[]>("/opening-details"),
   saveOpeningDetails: (accountId: number, rows: { partyId: number; amount: number | null }[]) =>
     api<Id>(`/accounts/${accountId}/opening-details`, { method: "PUT", body: { rows } }),
   parties: () => api<Party[]>("/parties"),
   createParty: (body: { name: string; type: string }) => api<Id>("/parties", { method: "POST", body }),
   updateParty: (id: number, body: Partial<Party>) => api<Id>(`/parties/${id}`, { method: "PUT", body }),
+  removeParty: (id: number) => api<RemoveResult>(`/parties/${id}`, { method: "DELETE" }),
   events: () => api<EventItem[]>("/events"),
   saveEventNote: (eventId: number, note: string) => api<Id>(`/events/${eventId}/note`, { method: "PUT", body: { note } }),
   createEvent: (body: { name: string; startDate?: string }) => api<Id>("/events", { method: "POST", body }),
+  removeEvent: (id: number) => api<RemoveResult>(`/events/${id}`, { method: "DELETE" }),
 };
 
 export const reportApi = {

@@ -53,6 +53,8 @@ export interface Account {
   description: string | null;
   isActive: boolean;
   isUsed: boolean;
+  /** akun beban tambahan (6112 dst.) yang boleh dihapus dari dropdown; akun bawaan tidak */
+  isCustom?: boolean;
 }
 
 /** Rincian saldo awal 1 Januari per pihak (piutang/utang). */

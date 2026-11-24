@@ -170,6 +170,13 @@ export default function AccountsPanel() {
                           parties.reload();
                           return r.id;
                         },
+                        // Pihak yang sudah tersimpan di rincian/jurnal hanya dinonaktifkan di server; yang dipilih di baris lain form ini tidak bisa dihapus.
+                        canRemove: (id) => !edit.details.some((x, j) => j !== i && x.partyId === id),
+                        onRemove: async (id) => {
+                          const r = await masterApi.removeParty(id);
+                          parties.reload();
+                          return r.message;
+                        },
                       }}
                     />
                   </Field>

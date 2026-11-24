@@ -6,7 +6,8 @@ import type { Account } from "../types";
 /**
  * Dropdown akun dikelompokkan per kelompok (ASET, LIABILITAS, …), bisa dicari per kode atau nama.
  * Nilai = id, atau nama jika `byName`. Dengan `onCreated` (khusus owner), akun beban 61xx baru bisa
- * ditambah langsung dari dropdown; kodenya dibuat otomatis.
+ * ditambah langsung dari dropdown; kodenya dibuat otomatis. Akun beban tambahan (6112 dst.) juga bisa dihapus
+ * dari dropdown (yang sudah dipakai hanya dinonaktifkan); akun bawaan tidak.
  */
 export default function AccountSelect({
   accounts, value, onChange, blank, byName, id, onCreated, ariaLabel,
@@ -47,6 +48,14 @@ export default function AccountSelect({
                 });
                 onCreated();
                 return byName ? name : r.id;
+              },
+              canRemove: (v) => !!accounts.find((a) => (byName ? a.name : a.id) === v)?.isCustom,
+              onRemove: async (v) => {
+                const acc = accounts.find((a) => (byName ? a.name : a.id) === v);
+                if (!acc) return;
+                const r = await masterApi.removeAccount(acc.id);
+                onCreated();
+                return r.message;
               },
             }
           : undefined

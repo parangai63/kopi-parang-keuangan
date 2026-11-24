@@ -102,6 +102,11 @@ export default function DailySalesPage() {
                     staff.reload();
                     return r.id;
                   } : undefined}
+                  onRemoveStaff={user?.role !== "KASIR" ? async (id) => {
+                    const r = await masterApi.removeParty(id);
+                    staff.reload();
+                    return r.message;
+                  } : undefined}
                   canVerify={user?.role !== "KASIR"}
                   onSaved={reload}
                   onClose={() => setSelected(null)}

@@ -1,6 +1,6 @@
 import { KeyboardEvent, ReactNode, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, Trash2 } from "lucide-react";
 
 export interface SelectOption<V extends string | number> {
   value: V;
@@ -11,7 +11,8 @@ export interface SelectOption<V extends string | number> {
   hint?: string;
 }
 
-/** Menambah opsi baru langsung dari dropdown: ketik nama di kotak cari, lalu klik "Tambah". */
+/** Menambah (dan opsional menghapus) opsi langsung dari dropdown: ketik nama di kotak cari, lalu klik "Tambah";
+ * ikon tong sampah di tiap opsi untuk menghapus, dengan konfirmasi di baris itu juga. */
 export interface SelectCreate<V> {
   /** nama jenis data untuk teks bantuan, mis. "event", "pihak", "karyawan" */
   noun: string;
@@ -19,6 +20,10 @@ export interface SelectCreate<V> {
   types?: { value: string; label: string }[];
   /** simpan ke server, kembalikan value opsi baru; daftar opsi dimuat ulang oleh pemanggil */
   onCreate: (name: string, type?: string) => Promise<V>;
+  /** hapus opsi di server; kembalikan pesan hasil (mis. "dinonaktifkan karena sudah dipakai"); daftar dimuat ulang oleh pemanggil */
+  onRemove?: (value: V, label: string) => Promise<string | void>;
+  /** opsi mana yang boleh dihapus (bawaan: semua) */
+  canRemove?: (value: V) => boolean;
 }
 
 interface Props<V extends string | number> {
@@ -69,12 +74,19 @@ export default function Select<V extends string | number>({
   const [createErr, setCreateErr] = useState("");
   // Opsi yang baru ditambah: labelnya dipakai sampai daftar dari server dimuat ulang.
   const [created, setCreated] = useState<SelectOption<V> | null>(null);
+  // Opsi yang baru dihapus: disembunyikan sampai daftar dari server dimuat ulang.
+  const [removed, setRemoved] = useState<(V | "")[]>([]);
+  // Opsi yang sedang dikonfirmasi untuk dihapus (konfirmasi tampil di baris opsi itu).
+  const [confirmDel, setConfirmDel] = useState<V | "" | null>(null);
+  const [notice, setNotice] = useState("");
 
   const showSearch = searchable ?? (options.length > 7 || !!create);
   const all = useMemo(() => {
-    const base = created && !options.some((o) => o.value === created.value) ? [...options, created] : options;
+    const withNew = created && !options.some((o) => o.value === created.value) ? [...options, created] : options;
+    const base = removed.length ? withNew.filter((o) => !removed.includes(o.value)) : withNew;
     return allowEmpty ? [{ value: "" as V | "", label: placeholder } as SelectOption<V | "">, ...base] : (base as SelectOption<V | "">[]);
-  }, [options, created, allowEmpty, placeholder]);
+  }, [options, created, removed, allowEmpty, placeholder]);
+  const removable = (v: V | "") => v !== "" && !!create?.onRemove && (create.canRemove?.(v as V) ?? true);
   const q = norm(query);
   const shown = q ? all.filter((o) => o.value !== "" && norm(`${o.hint ?? ""} ${o.label}`).includes(q)) : all;
   const exact = q && all.some((o) => norm(o.label) === q);
@@ -103,6 +115,8 @@ export default function Select<V extends string | number>({
     if (disabled) return;
     setQuery("");
     setCreateErr("");
+    setNotice("");
+    setConfirmDel(null);
     const i = all.findIndex((o) => o.value === value);
     setActive(i < 0 ? 0 : i);
     widthRef.current = null;
@@ -132,6 +146,27 @@ export default function Select<V extends string | number>({
       close();
     } catch (e) {
       setCreateErr(e instanceof Error ? e.message : "Gagal menambah.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(o: SelectOption<V | "">) {
+    if (!create?.onRemove || o.value === "" || busy) return;
+    setBusy(true);
+    setCreateErr("");
+    setNotice("");
+    try {
+      const msg = await create.onRemove(o.value as V, o.label);
+      setRemoved((r) => [...r, o.value]);
+      if (created?.value === o.value) setCreated(null);
+      if (value === o.value) onChange("");
+      setConfirmDel(null);
+      setNotice(msg || `“${o.label}” dihapus.`);
+      setActive((a) => Math.max(0, Math.min(a, shown.length - 2)));
+      (showSearch ? searchRef.current : listRef.current)?.focus();
+    } catch (e) {
+      setCreateErr(e instanceof Error ? e.message : "Gagal menghapus.");
     } finally {
       setBusy(false);
     }
@@ -178,9 +213,18 @@ export default function Select<V extends string | number>({
   // Saat mengetik: sorot hasil pertama. Kotak cari dikosongkan: kembali ke opsi terpilih.
   useEffect(() => {
     setActive(query ? 0 : Math.max(0, all.findIndex((o) => o.value === value)));
+    setConfirmDel(null);
   }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onKey(e: KeyboardEvent) {
+    if (confirmDel !== null && (e.key === "Escape" || e.key === "Enter")) {
+      // Saat konfirmasi hapus: Enter = hapus, Esc = batal (dropdown tetap terbuka).
+      e.preventDefault();
+      const o = all.find((x) => x.value === confirmDel);
+      if (e.key === "Enter" && o) remove(o);
+      else setConfirmDel(null);
+      return;
+    }
     if (e.key === "Escape") { e.preventDefault(); close(); }
     else if (e.key === "Tab") close(false);
     else if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, shown.length - 1)); }
@@ -205,6 +249,17 @@ export default function Select<V extends string | number>({
     if (o.group && o.group !== lastGroup) rows.push(<li key={`g-${o.group}-${i}`} className="sel-group" role="presentation">{o.group}</li>);
     lastGroup = o.group;
     const isSel = o.value === value || (o.value === "" && value === "");
+    if (confirmDel !== null && o.value === confirmDel) {
+      rows.push(
+        <li key={`o-${String(o.value)}`} id={`${listId}-${i}`} data-i={i} role="option" aria-selected={isSel} className="sel-opt sel-confirm active"
+          onMouseDown={(e) => e.preventDefault()}>
+          <span className="sel-label">Hapus “{o.label}”?</span>
+          <button type="button" className="sel-confirm-yes" disabled={busy} onClick={() => remove(o)}>{busy ? "Menghapus…" : "Hapus"}</button>
+          <button type="button" className="sel-confirm-no" disabled={busy} onClick={() => setConfirmDel(null)}>Batal</button>
+        </li>,
+      );
+      return;
+    }
     rows.push(
       <li
         key={`o-${String(o.value)}`}
@@ -220,6 +275,18 @@ export default function Select<V extends string | number>({
         {o.hint && <span className="sel-hint">{o.hint}</span>}
         <span className="sel-label">{o.label}</span>
         {isSel && o.value !== "" && <Check className="sel-check" aria-hidden="true" />}
+        {removable(o.value) && (
+          <button
+            type="button"
+            className="sel-del"
+            tabIndex={-1}
+            title={`Hapus ${o.label}`}
+            aria-label={`Hapus ${o.label}`}
+            onClick={(e) => { e.stopPropagation(); setCreateErr(""); setNotice(""); setActive(i); setConfirmDel(o.value); }}
+          >
+            <Trash2 aria-hidden="true" />
+          </button>
+        )}
       </li>,
     );
   });
@@ -293,6 +360,7 @@ export default function Select<V extends string | number>({
                   <Plus aria-hidden="true" /> {busy ? "Menyimpan…" : `Tambah ${create.noun} “${query.trim()}”`}
                 </button>
               )}
+              {notice && <span className="sel-create-note" role="status">{notice}</span>}
               {createErr && <span className="sel-create-err" role="alert">{createErr}</span>}
             </div>
           )}

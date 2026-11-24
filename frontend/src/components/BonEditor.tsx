@@ -9,7 +9,7 @@ export interface BonRow {
 
 /** Bon karyawan per orang (spesifikasi: daily_staff_bons). Nama dari tabel Pihak (karyawan). */
 export default function BonEditor({
-  rows, onChange, staff, disabled, onCreateStaff,
+  rows, onChange, staff, disabled, onCreateStaff, onRemoveStaff,
 }: {
   rows: BonRow[];
   onChange: (rows: BonRow[]) => void;
@@ -17,6 +17,8 @@ export default function BonEditor({
   disabled?: boolean;
   /** owner/admin: tambah karyawan baru langsung dari dropdown (kasir tidak punya akses ke data Pihak) */
   onCreateStaff?: (name: string) => Promise<number>;
+  /** owner/admin: hapus karyawan dari dropdown (yang sudah punya bon hanya dinonaktifkan); kembalikan pesan hasil */
+  onRemoveStaff?: (id: number) => Promise<string>;
 }) {
   const set = (i: number, patch: Partial<BonRow>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   return (
@@ -30,7 +32,13 @@ export default function BonEditor({
             placeholder="Pilih karyawan…"
             disabled={disabled}
             ariaLabel="Nama karyawan"
-            create={onCreateStaff ? { noun: "karyawan", onCreate: onCreateStaff } : undefined}
+            create={onCreateStaff ? {
+              noun: "karyawan",
+              onCreate: onCreateStaff,
+              onRemove: onRemoveStaff,
+              // karyawan yang sedang dipilih di baris bon lain tidak bisa dihapus dari sini
+              canRemove: (id) => !rows.some((x, j) => j !== i && x.partyId === id),
+            } : undefined}
           />
           <MoneyInput value={r.amount} disabled={disabled} onChange={(v) => set(i, { amount: v })} />
           <button type="button" disabled={disabled} className="iconbtn" onClick={() => onChange(rows.filter((_, j) => j !== i))} aria-label="Hapus bon">

@@ -130,6 +130,11 @@ export default function JournalForm({
                     onMasterChanged?.();
                     return r.id;
                   },
+                  onRemove: async (id) => {
+                    const r = await masterApi.removeEvent(id);
+                    onMasterChanged?.();
+                    return r.message;
+                  },
                 }}
               />
             </Field>
@@ -149,6 +154,11 @@ export default function JournalForm({
                     const r = await masterApi.createParty({ name, type: type ?? "LAINNYA" });
                     onMasterChanged?.();
                     return r.id;
+                  },
+                  onRemove: async (id) => {
+                    const r = await masterApi.removeParty(id);
+                    onMasterChanged?.();
+                    return r.message;
                   },
                 }}
               />

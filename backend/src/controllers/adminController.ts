@@ -109,6 +109,9 @@ export async function postAccount(req: Request, res: Response) {
 export async function putAccount(req: Request, res: Response) {
   res.json({ id: await master.updateAccount(req.user!, intParam(req.params.id, "ID"), req.body ?? {}) });
 }
+export async function deleteAccount(req: Request, res: Response) {
+  res.json(await master.removeAccount(req.user!, intParam(req.params.id, "ID")));
+}
 export async function getOpeningDetails(_req: Request, res: Response) {
   res.json(await master.listOpeningDetails());
 }
@@ -131,6 +134,9 @@ export async function postParty(req: Request, res: Response) {
 export async function putParty(req: Request, res: Response) {
   res.json({ id: await master.upsertParty(req.user!, intParam(req.params.id, "ID"), req.body ?? {}) });
 }
+export async function deleteParty(req: Request, res: Response) {
+  res.json(await master.removeParty(req.user!, intParam(req.params.id, "ID")));
+}
 
 // ---------- event ----------
 export async function getEventList(_req: Request, res: Response) {
@@ -141,6 +147,9 @@ export async function putEventNote(req: Request, res: Response) {
 }
 export async function postEvent(req: Request, res: Response) {
   res.status(201).json({ id: await master.createEvent(req.user!, req.body ?? {}) });
+}
+export async function deleteEvent(req: Request, res: Response) {
+  res.json(await master.removeEvent(req.user!, intParam(req.params.id, "ID")));
 }
 
 // ---------- reset data: kosongkan semua transaksi (owner) ----------
