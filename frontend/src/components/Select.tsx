@@ -41,6 +41,8 @@ interface Props<V extends string | number> {
 
 const norm = (s: string) => s.toLocaleLowerCase("id-ID").normalize("NFKD").replace(/\s+/g, " ").trim();
 const POP_MAX = 300;
+/** Lebar maksimum daftar opsi (px); lebih dari ini nama opsi turun baris. */
+const POP_MAX_WIDTH = 560;
 
 /**
  * Dropdown aplikasi (pengganti <select>): tampilan seragam, kotak cari, kelompok opsi, navigasi keyboard,
@@ -58,7 +60,11 @@ export default function Select<V extends string | number>({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+  const [pos, setPos] = useState<{
+    left: number; width: number | null; minWidth: number; maxWidth: number; top?: number; bottom?: number; maxHeight: number;
+  } | null>(null);
+  // Lebar daftar hasil ukur saat dibuka (null = belum diukur → render "max-content" dulu, lalu dikunci).
+  const widthRef = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [createErr, setCreateErr] = useState("");
   // Opsi yang baru ditambah: labelnya dipakai sampai daftar dari server dimuat ulang.
@@ -80,13 +86,17 @@ export default function Select<V extends string | number>({
     const r = t.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    // Minimal 220px supaya nama panjang & tombol tambah tetap terbaca di kolom sempit (mis. baris bon di HP).
-    const width = Math.min(Math.max(r.width, 220), vw - 16);
-    const left = Math.min(Math.max(8, r.left), vw - width - 8);
+    // Lebar mengikuti opsi terpanjang: minimal selebar pemicu (dan cukup untuk tombol tambah),
+    // maksimal POP_MAX_WIDTH atau lebar layar.
+    const maxWidth = Math.min(POP_MAX_WIDTH, vw - 16);
+    const minWidth = Math.min(Math.max(r.width, create ? 240 : 160), maxWidth);
+    const width = widthRef.current;
+    const left = Math.min(Math.max(8, r.left), vw - (width ?? minWidth) - 8);
     const below = vh - r.bottom - 8;
     const above = r.top - 8;
-    if (below < 220 && above > below) setPos({ left, width, bottom: vh - r.top + 4, maxHeight: Math.min(POP_MAX + 90, above - 4) });
-    else setPos({ left, width, top: r.bottom + 4, maxHeight: Math.min(POP_MAX + 90, below - 4) });
+    const base = { left, width, minWidth, maxWidth };
+    if (below < 220 && above > below) setPos({ ...base, bottom: vh - r.top + 4, maxHeight: Math.min(POP_MAX + 90, above - 4) });
+    else setPos({ ...base, top: r.bottom + 4, maxHeight: Math.min(POP_MAX + 90, below - 4) });
   }
 
   function openPop() {
@@ -95,6 +105,7 @@ export default function Select<V extends string | number>({
     setCreateErr("");
     const i = all.findIndex((o) => o.value === value);
     setActive(i < 0 ? 0 : i);
+    widthRef.current = null;
     place();
     setOpen(true);
   }
@@ -125,6 +136,14 @@ export default function Select<V extends string | number>({
       setBusy(false);
     }
   }
+
+  // Ukur lebar alami daftar (max-content) sekali saat dibuka, lalu kunci supaya tidak berubah-ubah saat mengetik
+  // di kotak cari; posisi kiri dihitung ulang agar tidak keluar layar.
+  useLayoutEffect(() => {
+    if (!open || !pos || widthRef.current !== null || !popRef.current) return;
+    widthRef.current = Math.ceil(popRef.current.getBoundingClientRect().width);
+    place();
+  }, [open, pos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fokus ke kotak cari (atau daftar) saat terbuka.
   useLayoutEffect(() => {
@@ -229,7 +248,10 @@ export default function Select<V extends string | number>({
         <div
           ref={popRef}
           className="sel-pop"
-          style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
+          style={{
+            left: pos.left, width: pos.width ?? "max-content", minWidth: pos.minWidth, maxWidth: pos.maxWidth,
+            top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight,
+          }}
           onKeyDown={onKey}
         >
           {showSearch && (
