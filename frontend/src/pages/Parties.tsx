@@ -4,10 +4,10 @@ import { useApi } from "../utils/useApi";
 import { useToast } from "../context/ToastContext";
 import { ErrorBox, Field, Loading, PageHeader, Panel, Pill } from "../components/ui";
 import type { Party, PartyType } from "../types";
+import Select from "../components/Select";
+import { PARTY_TYPE_OPTIONS, PARTY_TYPES } from "../utils/options";
 
-const TYPES: [PartyType, string][] = [
-  ["KARYAWAN", "Karyawan"], ["SUPPLIER", "Supplier"], ["PEMBERI_PINJAMAN", "Pemberi pinjaman"], ["OWNER", "Owner"], ["LAINNYA", "Lainnya"],
-];
+const TYPES = PARTY_TYPES;
 
 /** Karyawan & supplier. Ejaan nama HARUS sama dengan master Staff/Suppliers di Parang-ops
  * (tidak ada ID bersama — yang disamakan hanya nama). */
@@ -49,9 +49,7 @@ export default function PartiesPage() {
           <form className="toolbar" style={{ marginBottom: 0 }} onSubmit={add}>
             <Field label="Nama" className="q"><input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="Jenis">
-              <select value={type} onChange={(e) => setType(e.target.value as PartyType)}>
-                {TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
+              <Select value={type} options={PARTY_TYPE_OPTIONS} onChange={(v) => v && setType(v)} ariaLabel="Jenis pihak" />
             </Field>
             <button className="btn" type="submit" disabled={!name.trim()}>Tambah</button>
           </form>
@@ -75,9 +73,7 @@ export default function PartiesPage() {
                     <tr key={p.id}>
                       <td>{p.name}</td>
                       <td>
-                        <select className="mini" value={p.type} onChange={(e) => update(p, { type: e.target.value as PartyType })} aria-label={`Jenis ${p.name}`}>
-                          {TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                        </select>
+                        <Select size="mini" value={p.type} options={PARTY_TYPE_OPTIONS} onChange={(v) => v && update(p, { type: v })} ariaLabel={`Jenis ${p.name}`} />
                       </td>
                       <td>{p.isActive ? <Pill tone="ok">aktif</Pill> : <Pill>nonaktif</Pill>}</td>
                       <td className="act">

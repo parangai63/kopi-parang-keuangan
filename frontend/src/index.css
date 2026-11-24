@@ -99,8 +99,7 @@ main { min-width: 0; padding-inline: 28px; padding-block: 0 48px; }
 .chip > svg { width: 15px; height: 15px; color: var(--caramel); }
 /* Pemilih tahun buku di header; kuning saat melihat tahun lama (bukan tahun berjalan). */
 .chip.year-pick { padding-block: 4px; color: var(--muted); }
-.chip.year-pick select { cursor: pointer; font: inherit; font-weight: 750; color: var(--ink); background: transparent; border: 0; padding: 3px 2px; border-radius: 8px; width: auto; min-width: 0; }
-.chip.year-pick select:focus-visible { outline: 2px solid var(--accent); }
+.chip.year-pick .sel-chip { color: var(--ink); }
 .chip.year-pick.old { background: var(--warn-soft); border-color: rgba(230, 150, 20, .35); color: var(--warn); }
 .seg { display: inline-flex; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 99px; padding: 3px; }
 .seg button { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 14px; border-radius: 99px; font-size: 13px; color: var(--muted); font-weight: 600; }
@@ -411,7 +410,6 @@ a { color: var(--accent-text); }
 
 .bon-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 28px; gap: 8px; align-items: center; }
 .bon-list { display: flex; flex-direction: column; gap: 8px; }
-.fld .bon-row select { width: 100%; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .chips button { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border-radius: 99px; border: 1px solid var(--glass-border); background: var(--glass); color: var(--muted); transition: background .15s, color .15s; }
 .chips button[aria-pressed="true"] { background: var(--caramel-grad); border-color: transparent; color: #FFFFFF; box-shadow: var(--caramel-glow); }
@@ -429,3 +427,56 @@ a { color: var(--accent-text); }
 .login .btns { display: block; }
 .login .btn { display: flex; width: 100%; min-height: 46px; font-size: 14.5px; }
 .pin-input { text-align: center; letter-spacing: .6em; font-size: 22px !important; font-weight: 700; font-family: var(--f-mono); padding-block: 12px !important; }
+
+/* ---------- Dropdown (components/Select.tsx) ----------
+   Pemicu bergaya sama dengan input .fld; daftar opsi di portal (position: fixed) supaya tidak terpotong tabel. */
+.sel { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  min-height: 40px; padding: 8px 10px 8px 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px;
+  color: var(--ink); font-size: 14px; line-height: 1.35; transition: border-color .15s, box-shadow .15s, background .15s; }
+.fld > .sel { margin-top: auto; }
+.sel:hover { border-color: #D3C2AF; }
+.sel:focus-visible, .sel.open { border-color: var(--caramel); box-shadow: var(--caramel-ring); }
+.sel:disabled { cursor: not-allowed; background: var(--sunk); color: var(--muted); }
+.sel-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-value.placeholder { color: var(--faint); }
+.sel-value .sel-hint { margin-right: 7px; }
+.sel-chevron { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform .15s; }
+.sel.open .sel-chevron { transform: rotate(180deg); color: var(--caramel); }
+.sel-mini { min-height: 30px; padding: 4px 6px 4px 9px; border-radius: 8px; font-size: 13px; width: auto; min-width: 140px; border-color: rgba(43, 29, 20, .12); }
+.sel-mini .sel-chevron { width: 14px; height: 14px; }
+.sel-chip { min-height: 0; padding: 3px 4px 3px 6px; border: 0; border-radius: 8px; background: transparent; font-weight: 750; width: auto; gap: 4px; }
+.sel-chip:hover { background: rgba(255, 255, 255, .6); }
+.sel-chip.open, .sel-chip:focus-visible { box-shadow: var(--caramel-ring); }
+.sel-chip .sel-chevron { width: 14px; height: 14px; }
+
+.sel-pop { position: fixed; z-index: 1000; display: flex; flex-direction: column; overflow: hidden; background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 2px 6px rgba(43, 29, 20, .06), 0 18px 40px -12px rgba(43, 29, 20, .35);
+  animation: sel-in .12s ease-out; font-size: 14px; color: var(--ink); }
+@keyframes sel-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.sel-search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.sel-search svg { width: 15px; height: 15px; color: var(--faint); flex: none; }
+.sel-search input { all: unset; flex: 1; min-width: 0; font-size: 14px; color: var(--ink); padding: 4px 0; }
+.sel-search input::placeholder { color: var(--faint); }
+.sel-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; min-height: 0; max-height: 300px; outline: none; }
+.sel-group { padding: 10px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.sel-group:first-child { padding-top: 4px; }
+.sel-opt { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px; cursor: pointer; }
+.sel-opt.active { background: var(--accent-soft); }
+.sel-opt[aria-selected="true"] { font-weight: 650; color: var(--accent-text); }
+.sel-opt.empty { color: var(--muted); font-style: italic; }
+.sel-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sel-hint { font-family: var(--f-mono); font-size: 12px; color: var(--faint); flex: none; }
+.sel-check { width: 15px; height: 15px; flex: none; color: var(--caramel); }
+.sel-none { padding: 12px 10px; color: var(--muted); font-size: 13px; }
+.sel-create { border-top: 1px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: var(--sunk); }
+.sel-create-hint { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.sel-create-hint svg, .sel-create-btn svg { width: 14px; height: 14px; flex: none; }
+.sel-create-btn { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 9px;
+  font-size: 13px; font-weight: 650; color: var(--accent-text); overflow-wrap: anywhere; }
+.sel-create-btn:hover, .sel-create-btn:focus-visible { background: var(--accent-soft); }
+.sel-create-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.sel-create-types button { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 99px;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.sel-create-types button:hover, .sel-create-types button:focus-visible { border-color: var(--caramel); color: var(--accent-text); }
+.sel-create-btn:disabled, .sel-create-types button:disabled { opacity: .5; cursor: wait; }
+.sel-create-err { font-size: 12.5px; color: var(--crit); }

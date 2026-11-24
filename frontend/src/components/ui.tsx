@@ -5,6 +5,7 @@ import { CalendarCheck, Loader2, Lock, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { BULAN } from "../utils/format";
 import type { DayStatus, Role } from "../types";
+import Select from "./Select";
 
 export const ROLE_LABEL: Record<Role, string> = { OWNER: "Owner", ADMIN: "Admin keuangan", KASIR: "Kasir" };
 
@@ -25,14 +26,17 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
       {user && (
         <div className="top-util">
           {canPickYear && (
-            <label className={`chip year-pick${oldYear ? " old" : ""}`} title={oldYear ? `Sedang melihat tahun buku lama. Tahun berjalan: ${user.latestYear}.` : "Tahun buku yang dilihat"}>
+            <span className={`chip year-pick${oldYear ? " old" : ""}`} title={oldYear ? `Sedang melihat tahun buku lama. Tahun berjalan: ${user.latestYear}.` : "Tahun buku yang dilihat"}>
               Tahun buku
-              <select value={user.fiscalYear} onChange={(e) => switchYear(Number(e.target.value))} aria-label="Pilih tahun buku">
-                {[...user.fiscalYears].reverse().map((y) => (
-                  <option key={y.year} value={y.year}>{y.year}{y.year === user.latestYear ? " (berjalan)" : ""}</option>
-                ))}
-              </select>
-            </label>
+              <Select
+                size="chip"
+                value={user.fiscalYear}
+                options={[...user.fiscalYears].reverse().map((y) => ({ value: y.year, label: String(y.year), hint: y.year === user.latestYear ? "berjalan" : undefined }))}
+                onChange={(v) => v && switchYear(v)}
+                ariaLabel="Pilih tahun buku"
+                searchable={false}
+              />
+            </span>
           )}
           <span className="chip"><CalendarCheck aria-hidden="true" />Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
           <span className="user-pill" title="Masuk sebagai">

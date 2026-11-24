@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { ErrorBox, Field, Loading, PageHeader, Panel, Pill, ROLE_LABEL } from "../components/ui";
 import type { Role } from "../types";
+import Select from "../components/Select";
 
 const digits = (v: string) => v.replace(/\D/g, "").slice(0, 6);
 
@@ -61,9 +62,12 @@ export default function UsersPage() {
           <form className="toolbar" onSubmit={add}>
             <Field label="Nama" className="q"><input autoComplete="off" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
             <Field label="Peran">
-              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-                {(Object.keys(ROLE_LABEL) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-              </select>
+              <Select
+                value={form.role}
+                options={(Object.keys(ROLE_LABEL) as Role[]).map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
+                onChange={(v) => v && setForm({ ...form, role: v })}
+                ariaLabel="Peran"
+              />
             </Field>
             <Field label="PIN 6 digit">
               <input inputMode="numeric" maxLength={6} autoComplete="off" value={form.pin} onChange={(e) => setForm({ ...form, pin: digits(e.target.value) })} />

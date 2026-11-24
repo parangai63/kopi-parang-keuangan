@@ -9,6 +9,7 @@ import { useApi } from "../utils/useApi";
 import { useToast } from "../context/ToastContext";
 import { Built, monthCols, Statement } from "../components/reports/Statement";
 import { EVENT_COLUMNS, eventRows, salesRecapRows, taxRows } from "../components/reports/buildRows";
+import Select from "../components/Select";
 
 type Tab = "omzet" | "pajak" | "event";
 const TABS: [Tab, string][] = [["omzet", "Rekap Omzet"], ["pajak", "Pajak (PBJT)"], ["event", "Analisis Event"]];
@@ -89,17 +90,16 @@ function EventAnalysis() {
       <Panel title="Keterangan event" hint="Catatan evaluasi, misalnya penyebab rugi atau pelajaran untuk event berikutnya. Riwayat tersimpan.">
         <form className="toolbar" style={{ marginBottom: 0 }} onSubmit={save}>
           <Field label="Event">
-            <select
+            <Select
               value={pick}
-              onChange={(e) => {
-                const id = e.target.value ? Number(e.target.value) : "";
+              options={data.events.filter((x) => x.id).map((x) => ({ value: x.id!, label: x.name }))}
+              onChange={(id) => {
                 setPick(id);
                 setNote(data.events.find((x) => x.id === id)?.note ?? "");
               }}
-            >
-              <option value="">— pilih event —</option>
-              {data.events.filter((x) => x.id).map((x) => <option key={x.id!} value={x.id!}>{x.name}</option>)}
-            </select>
+              placeholder="Pilih event…"
+              ariaLabel="Event"
+            />
           </Field>
           <Field label="Keterangan" className="q"><input value={note} disabled={pick === ""} onChange={(e) => setNote(e.target.value)} /></Field>
           <button className="btn" type="submit" disabled={busy || pick === ""}>Simpan</button>

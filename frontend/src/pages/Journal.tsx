@@ -9,6 +9,7 @@ import { ErrorBox, Field, Loading, PageHeader, Pill } from "../components/ui";
 import ExportMenu from "../components/ExportMenu";
 import JournalForm from "../components/JournalForm";
 import AccountSelect from "../components/AccountSelect";
+import Select from "../components/Select";
 
 const PAGE_SIZE = 60;
 
@@ -121,6 +122,7 @@ export default function JournalPage() {
           events={events.data ?? []}
           parties={parties.data ?? []}
           editId={form === "new" ? undefined : form}
+          onMasterChanged={() => { accounts.reload(); events.reload(); parties.reload(); }}
           onCancel={closeForm}
           onSaved={async (no, id) => {
             toast(form === "new" ? `Tersimpan sebagai ${no}.` : `${no} diperbarui.`);
@@ -136,26 +138,38 @@ export default function JournalPage() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="keterangan, no. bukti, pihak, nota" />
         </Field>
         <Field label="Bulan">
-          <select value={f.month} onChange={(e) => setFilter({ month: Number(e.target.value) || "" })}>
-            <option value="">Semua bulan</option>
-            {BULAN.map((b, i) => <option key={b} value={i + 1}>{b}</option>)}
-          </select>
+          <Select
+            value={f.month}
+            options={BULAN.map((b, i) => ({ value: i + 1, label: b }))}
+            onChange={(v) => setFilter({ month: v })}
+            placeholder="Semua bulan"
+            allowEmpty
+            searchable={false}
+            ariaLabel="Filter bulan"
+          />
         </Field>
         <Field label="Akun">
-          <AccountSelect accounts={accounts.data ?? []} value={f.account} byName blank="Semua akun" onChange={(v) => setFilter({ account: String(v) })} />
+          <AccountSelect accounts={accounts.data ?? []} value={f.account} byName blank="Semua akun" onChange={(v) => setFilter({ account: String(v) })} ariaLabel="Filter akun" />
         </Field>
         <Field label="Event">
-          <select value={f.event} onChange={(e) => setFilter({ event: e.target.value })}>
-            <option value="">Semua</option>
-            {(events.data ?? []).map((ev) => <option key={ev.id} value={ev.name}>{ev.name}</option>)}
-          </select>
+          <Select
+            value={f.event}
+            options={(events.data ?? []).map((ev) => ({ value: ev.name, label: ev.name }))}
+            onChange={(v) => setFilter({ event: v })}
+            placeholder="Semua event"
+            allowEmpty
+            ariaLabel="Filter event"
+          />
         </Field>
         <Field label="Jenis">
-          <select value={f.kind} onChange={(e) => setFilter({ kind: e.target.value })}>
-            <option value="">Semua</option>
-            <option value="UMUM">Input manual</option>
-            <option value="AUTO">Otomatis sistem</option>
-          </select>
+          <Select
+            value={f.kind}
+            options={[{ value: "UMUM", label: "Input manual" }, { value: "AUTO", label: "Otomatis sistem" }]}
+            onChange={(v) => setFilter({ kind: v })}
+            placeholder="Semua jenis"
+            allowEmpty
+            ariaLabel="Filter jenis jurnal"
+          />
         </Field>
       </div>
       {list.loading ? (

@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
-import { journalApi, JournalInput } from "../api";
+import { journalApi, JournalInput, masterApi } from "../api";
+import { PARTY_TYPE_OPTIONS } from "../utils/options";
+import Select from "./Select";
 import { todayJakarta } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
 import { ErrorBox, Field, Loading, Panel } from "./ui";
@@ -22,16 +24,19 @@ const EMPTY = (fiscalYear?: number): JournalInput => ({
  * Dengan `editId`, form memuat jurnal itu dan menyimpan lewat PUT (nomor bukti tetap).
  * Validasi utama dicek di server; di sini hanya pemeriksaan cepat agar pesan muncul lebih awal. */
 export default function JournalForm({
-  accounts, events, parties, editId, onSaved, onCancel,
+  accounts, events, parties, editId, onMasterChanged, onSaved, onCancel,
 }: {
   accounts: Account[];
   events: EventItem[];
   parties: Party[];
   editId?: number;
+  /** dipanggil setelah akun/event/pihak baru ditambah dari dropdown, supaya daftarnya dimuat ulang */
+  onMasterChanged?: () => void;
   onSaved: (voucherNo: string, id: number) => void;
   onCancel: () => void;
 }) {
   const { user } = useAuth();
+  const isOwner = user?.role === "OWNER";
   const [v, setV] = useState<JournalInput>(() => EMPTY(user?.fiscalYear));
   const [voucherNo, setVoucherNo] = useState("");
   const [loading, setLoading] = useState(!!editId);
@@ -96,10 +101,10 @@ export default function JournalForm({
               <input type="date" value={v.date} onChange={(e) => set({ date: e.target.value })} />
             </Field>
             <Field label="Akun debet">
-              <AccountSelect accounts={accounts} value={v.debitAccountId} blank="Pilih akun…" onChange={(x) => set({ debitAccountId: x as number })} />
+              <AccountSelect accounts={accounts} value={v.debitAccountId} onChange={(x) => set({ debitAccountId: x as number | "" })} onCreated={isOwner ? onMasterChanged : undefined} ariaLabel="Akun debet" />
             </Field>
             <Field label="Akun kredit">
-              <AccountSelect accounts={accounts} value={v.creditAccountId} blank="Pilih akun…" onChange={(x) => set({ creditAccountId: x as number })} />
+              <AccountSelect accounts={accounts} value={v.creditAccountId} onChange={(x) => set({ creditAccountId: x as number | "" })} onCreated={isOwner ? onMasterChanged : undefined} ariaLabel="Akun kredit" />
             </Field>
             <Field label="Nominal (Rp)">
               <MoneyInput value={v.amount} onChange={(x) => set({ amount: x })} />
@@ -111,17 +116,42 @@ export default function JournalForm({
               <input autoComplete="off" value={v.receiptNo} onChange={(e) => set({ receiptNo: e.target.value })} placeholder="sama dengan di Parang-ops" />
             </Field>
             <Field label="Tag event">
-              <select value={v.eventId} onChange={(e) => set({ eventId: Number(e.target.value) || "" })}>
-                <option value="">Tanpa event</option>
-                {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
-              </select>
+              <Select
+                value={v.eventId}
+                options={events.map((ev) => ({ value: ev.id, label: ev.name }))}
+                onChange={(x) => set({ eventId: x })}
+                placeholder="Tanpa event"
+                allowEmpty
+                ariaLabel="Tag event"
+                create={{
+                  noun: "event",
+                  onCreate: async (name) => {
+                    const r = await masterApi.createEvent({ name, startDate: v.date || undefined });
+                    onMasterChanged?.();
+                    return r.id;
+                  },
+                }}
+              />
             </Field>
             <Field label="Pihak (opsional)">
-              <select value={v.partyId} onChange={(e) => set({ partyId: Number(e.target.value) || "" })}>
-                <option value="">—</option>
-                {/* Pihak nonaktif tetap muncul bila sudah terpasang di jurnal yang diedit. */}
-                {parties.filter((p) => p.isActive || p.id === v.partyId).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              {/* Pihak nonaktif tetap muncul bila sudah terpasang di jurnal yang diedit. */}
+              <Select
+                value={v.partyId}
+                options={parties.filter((p) => p.isActive || p.id === v.partyId).map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(x) => set({ partyId: x })}
+                placeholder="Tanpa pihak"
+                allowEmpty
+                ariaLabel="Pihak"
+                create={{
+                  noun: "pihak",
+                  types: PARTY_TYPE_OPTIONS,
+                  onCreate: async (name, type) => {
+                    const r = await masterApi.createParty({ name, type: type ?? "LAINNYA" });
+                    onMasterChanged?.();
+                    return r.id;
+                  },
+                }}
+              />
             </Field>
           </fieldset>
           {err && <div role="alert" className="err">{err}</div>}

@@ -8,6 +8,8 @@ import { num } from "../utils/format";
 import { ErrorBox, Field, Loading, Panel, Pill } from "./ui";
 import MoneyInput from "./MoneyInput";
 import type { Account } from "../types";
+import Select from "./Select";
+import { PARTY_TYPE_OPTIONS } from "../utils/options";
 
 interface EditState {
   account: Account;
@@ -154,13 +156,22 @@ export default function AccountsPanel() {
               {edit.details.map((d, i) => (
                 <div key={i} className="toolbar" style={{ marginBottom: 6 }}>
                   <Field label="Pihak" className="q">
-                    <select
+                    <Select
                       value={d.partyId}
-                      onChange={(e) => setEdit({ ...edit, details: edit.details.map((x, j) => (j === i ? { ...x, partyId: e.target.value ? Number(e.target.value) : "" } : x)) })}
-                    >
-                      <option value="">— pilih pihak —</option>
-                      {(parties.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                      options={(parties.data ?? []).map((p) => ({ value: p.id, label: p.name }))}
+                      onChange={(v) => setEdit({ ...edit, details: edit.details.map((x, j) => (j === i ? { ...x, partyId: v } : x)) })}
+                      placeholder="Pilih pihak…"
+                      ariaLabel="Pihak"
+                      create={{
+                        noun: "pihak",
+                        types: PARTY_TYPE_OPTIONS,
+                        onCreate: async (name, type) => {
+                          const r = await masterApi.createParty({ name, type: type ?? "LAINNYA" });
+                          parties.reload();
+                          return r.id;
+                        },
+                      }}
+                    />
                   </Field>
                   <Field label="Nominal">
                     <MoneyInput value={d.amount} onChange={(v) => setEdit({ ...edit, details: edit.details.map((x, j) => (j === i ? { ...x, amount: v } : x)) })} />

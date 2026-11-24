@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { dailyApi } from "../api";
+import { dailyApi, masterApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { BLN3, BULAN, jt, pct, rp, tgl, todayJakarta } from "../utils/format";
 import { ErrorBox, Loading, PageHeader, Panel, statusTone } from "../components/ui";
@@ -97,6 +97,11 @@ export default function DailySalesPage() {
                   locked={data.locked || sel.date > today}
                   threshold={data.cashDiffThreshold}
                   staff={staff.data ?? []}
+                  onCreateStaff={user?.role !== "KASIR" ? async (name) => {
+                    const r = await masterApi.createParty({ name, type: "KARYAWAN" });
+                    staff.reload();
+                    return r.id;
+                  } : undefined}
                   canVerify={user?.role !== "KASIR"}
                   onSaved={reload}
                   onClose={() => setSelected(null)}

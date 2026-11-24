@@ -21,13 +21,15 @@ interface Props {
   locked: boolean;
   threshold: number;
   staff: { id: number; name: string }[];
+  /** tambah karyawan baru dari dropdown bon (owner/admin) */
+  onCreateStaff?: (name: string) => Promise<number>;
   canVerify: boolean;
   onSaved: () => void;
   onClose: () => void;
 }
 
 /** Form satu tanggal untuk admin/owner, dengan pratinjau hitungan langsung (rumus sama dengan server). */
-export default function DayForm({ day, locked, threshold, staff, canVerify, onSaved, onClose }: Props) {
+export default function DayForm({ day, locked, threshold, staff, onCreateStaff, canVerify, onSaved, onClose }: Props) {
   const toast = useToast();
   const [v, setV] = useState<Record<Key, number | null>>({
     cashPos: day.cashPos, edcPos: day.edcPos, cashShift1: day.cashShift1, cashShift2: day.cashShift2,
@@ -84,7 +86,7 @@ export default function DayForm({ day, locked, threshold, staff, canVerify, onSa
         ))}
         <fieldset>
           <legend className="wide">Bon karyawan (per orang)</legend>
-          <BonEditor rows={bons} onChange={setBons} staff={staff} disabled={locked} />
+          <BonEditor rows={bons} onChange={setBons} staff={staff} disabled={locked} onCreateStaff={onCreateStaff} />
         </fieldset>
         <CalcList
           rows={[
