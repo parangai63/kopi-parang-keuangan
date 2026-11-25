@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { journalApi, masterApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { useAuth } from "../context/AuthContext";
@@ -9,6 +9,7 @@ import { ErrorBox, Field, Loading, PageHeader, Pill } from "../components/ui";
 import ExportMenu from "../components/ExportMenu";
 import JournalForm from "../components/JournalForm";
 import AccountSelect from "../components/AccountSelect";
+import Select from "../components/Select";
 
 const PAGE_SIZE = 60;
 
@@ -28,7 +29,8 @@ export default function JournalPage() {
   const [f, setF] = useState({ q: "", month: "" as number | "", account: "", event: "", kind: "" });
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
+  // null = form tertutup, "new" = transaksi baru, angka = id jurnal yang diedit.
+  const [form, setForm] = useState<null | "new" | number>(null);
   const accounts = useApi(() => masterApi.accounts(), []);
   const events = useApi(() => masterApi.events(), []);
   const parties = useApi(() => masterApi.parties(), []);
@@ -56,17 +58,79 @@ export default function JournalPage() {
   const d = list.data;
   const pages = d ? Math.ceil(d.total / PAGE_SIZE) : 1;
   const isOwner = user?.role === "OWNER";
+  const canEdit = isOwner || user?.role === "ADMIN";
+  // Sama dengan assertDateOpen di server: hanya tahun buku aktif dan bulan yang belum ditutup.
+  const editable = (j: { kind: string; id?: number; year: number; month: number }) =>
+    j.kind === "UMUM" && !!j.id && j.year === user?.fiscalYear && j.month > (user?.closedMonth ?? 0);
+
+  // Baris yang barusan disimpan: disorot sebentar dan digulir ke tengah layar setelah daftar dimuat ulang.
+  const [savedId, setSavedId] = useState<number | null>(null);
+  useEffect(() => {
+    if (savedId === null) return;
+    const row = document.querySelector(`tr[data-id="${savedId}"]`);
+    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+    else toast("Transaksi tersimpan, tapi tidak tampil di halaman/filter ini (mungkin tanggalnya berubah).");
+    const t = setTimeout(() => setSavedId(null), 3000);
+    return () => clearTimeout(t);
+  }, [savedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function startEdit(id: number) {
+    setForm(id);
+    setSavedId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeForm() {
+    // Batal edit: kembali ke baris asal agar tidak perlu mencarinya lagi.
+    if (typeof form === "number") {
+      document.querySelector(`tr[data-id="${form}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setForm(null);
+  }
 
   return (
     <>
-      <PageHeader title="Jurnal transaksi" subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""} />
-      {showForm && accounts.data && (
+      <PageHeader
+        title="Jurnal transaksi"
+        subtitle={d ? `${num(d.total)} transaksi · total ${rp(d.totalAmount)}` : ""}
+        actions={
+          <>
+            {form === null && <button className="btn" onClick={() => setForm("new")}>+ Transaksi baru</button>}
+            <ExportMenu
+              disabled={!d}
+              build={async () => ({
+                filename: "jurnal",
+                title: "Jurnal transaksi",
+                period: f.month ? BULAN[(f.month as number) - 1] : "Semua bulan",
+                columns: [
+                  { header: "No. bukti", key: "voucherNo" }, { header: "Tanggal", key: "date" },
+                  { header: "Debet", key: "debit" }, { header: "Kredit", key: "credit" },
+                  { header: "Nominal", key: "amount", numeric: true }, { header: "Keterangan", key: "description" },
+                  { header: "Event", key: "event" }, { header: "Pihak", key: "party" }, { header: "No. nota", key: "receiptNo" },
+                ],
+                // Seluruh hasil filter (semua halaman), bukan hanya halaman yang tampil.
+                rows: await fetchAllRows(f),
+              })}
+            />
+          </>
+        }
+      />
+      {form !== null && accounts.data && (
         <JournalForm
+          key={String(form)}
           accounts={accounts.data}
           events={events.data ?? []}
           parties={parties.data ?? []}
-          onCancel={() => setShowForm(false)}
-          onSaved={(no) => { toast(`Tersimpan sebagai ${no}.`); setShowForm(false); list.reload(); }}
+          editId={form === "new" ? undefined : form}
+          onMasterChanged={() => { accounts.reload(); events.reload(); parties.reload(); }}
+          onCancel={closeForm}
+          onSaved={async (no, id) => {
+            toast(form === "new" ? `Tersimpan sebagai ${no}.` : `${no} diperbarui.`);
+            setForm(null);
+            // Tunggu daftar terbaru dulu (useApi menampilkan data lama selama memuat), baru sorot barisnya.
+            await list.reload();
+            setSavedId(id);
+          }}
         />
       )}
       <div className="toolbar">
@@ -74,44 +138,39 @@ export default function JournalPage() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="keterangan, no. bukti, pihak, nota" />
         </Field>
         <Field label="Bulan">
-          <select value={f.month} onChange={(e) => setFilter({ month: Number(e.target.value) || "" })}>
-            <option value="">Semua bulan</option>
-            {BULAN.map((b, i) => <option key={b} value={i + 1}>{b}</option>)}
-          </select>
+          <Select
+            value={f.month}
+            options={BULAN.map((b, i) => ({ value: i + 1, label: b }))}
+            onChange={(v) => setFilter({ month: v })}
+            placeholder="Semua bulan"
+            allowEmpty
+            searchable={false}
+            ariaLabel="Filter bulan"
+          />
         </Field>
         <Field label="Akun">
-          <AccountSelect accounts={accounts.data ?? []} value={f.account} byName blank="Semua akun" onChange={(v) => setFilter({ account: String(v) })} />
+          <AccountSelect accounts={accounts.data ?? []} value={f.account} byName blank="Semua akun" onChange={(v) => setFilter({ account: String(v) })} ariaLabel="Filter akun" />
         </Field>
         <Field label="Event">
-          <select value={f.event} onChange={(e) => setFilter({ event: e.target.value })}>
-            <option value="">Semua</option>
-            {(events.data ?? []).map((ev) => <option key={ev.id} value={ev.name}>{ev.name}</option>)}
-          </select>
+          <Select
+            value={f.event}
+            options={(events.data ?? []).map((ev) => ({ value: ev.name, label: ev.name }))}
+            onChange={(v) => setFilter({ event: v })}
+            placeholder="Semua event"
+            allowEmpty
+            ariaLabel="Filter event"
+          />
         </Field>
         <Field label="Jenis">
-          <select value={f.kind} onChange={(e) => setFilter({ kind: e.target.value })}>
-            <option value="">Semua</option>
-            <option value="UMUM">Input manual</option>
-            <option value="AUTO">Otomatis sistem</option>
-          </select>
+          <Select
+            value={f.kind}
+            options={[{ value: "UMUM", label: "Input manual" }, { value: "AUTO", label: "Otomatis sistem" }]}
+            onChange={(v) => setFilter({ kind: v })}
+            placeholder="Semua jenis"
+            allowEmpty
+            ariaLabel="Filter jenis jurnal"
+          />
         </Field>
-        {!showForm && <button className="btn" onClick={() => setShowForm(true)}>+ Transaksi baru</button>}
-        <ExportMenu
-          disabled={!d}
-          build={async () => ({
-            filename: "jurnal",
-            title: "Jurnal transaksi",
-            period: f.month ? BULAN[(f.month as number) - 1] : "Semua bulan",
-            columns: [
-              { header: "No. bukti", key: "voucherNo" }, { header: "Tanggal", key: "date" },
-              { header: "Debet", key: "debit" }, { header: "Kredit", key: "credit" },
-              { header: "Nominal", key: "amount", numeric: true }, { header: "Keterangan", key: "description" },
-              { header: "Event", key: "event" }, { header: "Pihak", key: "party" }, { header: "No. nota", key: "receiptNo" },
-            ],
-            // Seluruh hasil filter (semua halaman), bukan hanya halaman yang tampil.
-            rows: await fetchAllRows(f),
-          })}
-        />
       </div>
       {list.loading ? (
         <Loading />
@@ -123,14 +182,24 @@ export default function JournalPage() {
             <thead>
               <tr>
                 <th>No. bukti</th><th>Tanggal</th><th>Debet</th><th>Kredit</th><th className="r">Nominal</th><th>Keterangan</th>
-                {isOwner && <th />}
+                {canEdit && <th />}
               </tr>
             </thead>
             <tbody>
               {d.rows.map((j) => (
-                <tr key={j.voucherNo}>
+                <tr
+                  key={j.voucherNo}
+                  data-id={j.id}
+                  className={j.id && j.id === form ? "editing" : j.id && j.id === savedId ? "just-saved" : undefined}
+                  aria-current={j.id && j.id === form ? "true" : undefined}
+                >
                   <td className="mono acc">
-                    {j.kind === "UMUM" ? j.voucherNo : <Pill tone={j.kind === "OTOMATIS" ? "auto" : "adj"}>{j.kind === "OTOMATIS" ? "otomatis" : "penyesuaian"}</Pill>}
+                    {j.kind === "UMUM" ? (
+                      <>
+                        {j.voucherNo}
+                        {j.id === form && <> <Pill tone="auto">sedang diedit</Pill></>}
+                      </>
+                    ) : <Pill tone={j.kind === "OTOMATIS" ? "auto" : "adj"}>{j.kind === "OTOMATIS" ? "otomatis" : "penyesuaian"}</Pill>}
                   </td>
                   <td className="acc">{tgl(j.date)}</td>
                   <td className="acc">{j.debit}</td>
@@ -142,18 +211,25 @@ export default function JournalPage() {
                     {j.party && <span className="note"> · {j.party}</span>}
                     {j.receiptNo && <span className="note"> · nota {j.receiptNo}</span>}
                   </td>
-                  {isOwner && (
+                  {canEdit && (
                     <td className="act">
-                      {j.kind === "UMUM" && j.id && (
-                        <button className="iconbtn" title="Batalkan (soft delete)" aria-label={`Batalkan ${j.voucherNo}`} onClick={() => voidEntry(j.id!, j.voucherNo)}>
-                          <Trash2 />
-                        </button>
+                      {editable(j) && (
+                        <>
+                          <button className="iconbtn" title="Ubah" aria-label={`Ubah ${j.voucherNo}`} onClick={() => startEdit(j.id!)}>
+                            <Pencil />
+                          </button>
+                          {isOwner && (
+                            <button className="iconbtn" title="Batalkan (soft delete)" aria-label={`Batalkan ${j.voucherNo}`} onClick={() => voidEntry(j.id!, j.voucherNo)}>
+                              <Trash2 />
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
                   )}
                 </tr>
               ))}
-              {!d.rows.length && <tr><td colSpan={isOwner ? 7 : 6} className="empty-row">Tidak ada transaksi yang cocok dengan filter.</td></tr>}
+              {!d.rows.length && <tr><td colSpan={canEdit ? 7 : 6} className="empty-row">Tidak ada transaksi yang cocok dengan filter.</td></tr>}
             </tbody>
           </table>
           {pages > 1 && (

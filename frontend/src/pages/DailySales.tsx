@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { dailyApi } from "../api";
+import { dailyApi, masterApi } from "../api";
 import { useApi } from "../utils/useApi";
 import { BLN3, BULAN, jt, pct, rp, tgl, todayJakarta } from "../utils/format";
 import { ErrorBox, Loading, PageHeader, Panel, statusTone } from "../components/ui";
@@ -13,7 +13,10 @@ export default function DailySalesPage() {
   const today = todayJakarta();
   const { user } = useAuth();
   const closed = user?.closedMonth ?? 0;
-  const [month, setMonth] = useState(Number(today.slice(5, 7)));
+  // Tahun buku lain dari tahun kalender (mis. menyelesaikan Desember lalu): buka bulan pertama yang belum ditutup.
+  const [month, setMonth] = useState(
+    user && Number(today.slice(0, 4)) !== user.fiscalYear ? Math.min(closed + 1, 12) : Number(today.slice(5, 7)),
+  );
   const [selected, setSelected] = useState<string | null>(null);
   const { data, loading, error, reload } = useApi(() => dailyApi.month(month), [month]);
   const staff = useApi(() => dailyApi.staff(), []);
@@ -94,6 +97,16 @@ export default function DailySalesPage() {
                   locked={data.locked || sel.date > today}
                   threshold={data.cashDiffThreshold}
                   staff={staff.data ?? []}
+                  onCreateStaff={user?.role !== "KASIR" ? async (name) => {
+                    const r = await masterApi.createParty({ name, type: "KARYAWAN" });
+                    staff.reload();
+                    return r.id;
+                  } : undefined}
+                  onRemoveStaff={user?.role !== "KASIR" ? async (id) => {
+                    const r = await masterApi.removeParty(id);
+                    staff.reload();
+                    return r.message;
+                  } : undefined}
                   canVerify={user?.role !== "KASIR"}
                   onSaved={reload}
                   onClose={() => setSelected(null)}

@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import prisma from "../prismaClient";
 import * as auth from "../services/authService";
 import * as master from "../services/masterDataService";
+import * as reset from "../services/resetService";
 import { clearSession, issueSession } from "../middleware/auth";
 import { getActiveSettings, serializeSettings } from "../services/settingsService";
 import { logAudit } from "../services/auditService";
@@ -108,6 +109,15 @@ export async function postAccount(req: Request, res: Response) {
 export async function putAccount(req: Request, res: Response) {
   res.json({ id: await master.updateAccount(req.user!, intParam(req.params.id, "ID"), req.body ?? {}) });
 }
+export async function deleteAccount(req: Request, res: Response) {
+  res.json(await master.removeAccount(req.user!, intParam(req.params.id, "ID")));
+}
+export async function getOpeningDetails(_req: Request, res: Response) {
+  res.json(await master.listOpeningDetails());
+}
+export async function putOpeningDetails(req: Request, res: Response) {
+  res.json({ id: await master.replaceOpeningDetails(req.user!, intParam(req.params.id, "ID"), req.body?.rows ?? []) });
+}
 
 // ---------- pihak ----------
 export async function getParties(req: Request, res: Response) {
@@ -124,11 +134,34 @@ export async function postParty(req: Request, res: Response) {
 export async function putParty(req: Request, res: Response) {
   res.json({ id: await master.upsertParty(req.user!, intParam(req.params.id, "ID"), req.body ?? {}) });
 }
+export async function deleteParty(req: Request, res: Response) {
+  res.json(await master.removeParty(req.user!, intParam(req.params.id, "ID")));
+}
 
 // ---------- event ----------
 export async function getEventList(_req: Request, res: Response) {
   res.json(await master.listEvents());
 }
+export async function putEventNote(req: Request, res: Response) {
+  res.json({ id: await master.addEventNote(req.user!, intParam(req.params.id, "ID"), req.body?.note) });
+}
 export async function postEvent(req: Request, res: Response) {
   res.status(201).json({ id: await master.createEvent(req.user!, req.body ?? {}) });
+}
+export async function deleteEvent(req: Request, res: Response) {
+  res.json(await master.removeEvent(req.user!, intParam(req.params.id, "ID")));
+}
+
+// ---------- reset data: kosongkan semua transaksi (owner) ----------
+export async function getResetPreview(_req: Request, res: Response) {
+  res.json(await reset.resetPreview());
+}
+export async function getResetBackup(_req: Request, res: Response) {
+  const data = await reset.resetBackup();
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  res.setHeader("Content-Disposition", `attachment; filename="cadangan-reset-${stamp}.json"`);
+  res.json(data);
+}
+export async function postReset(req: Request, res: Response) {
+  res.json(await reset.executeReset(req.user!, req.body ?? {}));
 }

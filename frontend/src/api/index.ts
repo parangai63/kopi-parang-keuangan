@@ -2,11 +2,13 @@
 import { api, qs } from "./client";
 import type {
   Account, AssetList, AuditRow, BalanceSheetReport, CashFlowReport, ClosingPreview, DailyDay, DailyMonth,
-  Dashboard, EquityReport, EventItem, EventResult, GeneralLedgerReport, JournalPage, KasirOverview, Me, Party,
+  Dashboard, EquityReport, EventItem, EventResult, GeneralLedgerReport, JournalPage, KasirOverview, Me, NoteSection, NotesReport, OpeningDetail, Party,
   ProfitLossReport, SalesRecapReport, Settings, TaxReport, TrialBalanceRow, UserRow,
 } from "../types";
 
 type Id = { id: number };
+/** Hasil hapus opsi master: dihapus permanen, atau dinonaktifkan karena sudah dipakai. */
+export type RemoveResult = { id: number; removed: "deleted" | "deactivated"; message: string };
 
 export const authApi = {
   me: () => api<{ user: Me }>("/auth/me"),
@@ -37,10 +39,27 @@ export interface JournalInput {
   partyId: number | "";
 }
 
+/** Bentuk GET /journal/:id (journalService.getJournal). */
+export interface JournalDetail {
+  id: number;
+  voucherNo: string;
+  date: string;
+  month: number;
+  debitAccountId: number;
+  creditAccountId: number;
+  amount: number;
+  description: string;
+  receiptNo: string | null;
+  eventId: number | null;
+  partyId: number | null;
+}
+
 export const journalApi = {
   list: (f: { q?: string; month?: number | ""; account?: string; event?: string; kind?: string; page?: number; pageSize?: number }) =>
     api<JournalPage>(`/journal${qs(f)}`),
+  get: (id: number) => api<JournalDetail>(`/journal/${id}`),
   create: (body: JournalInput) => api<{ id: number; voucherNo: string }>("/journal", { method: "POST", body: clean(body) }),
+  update: (id: number, body: JournalInput) => api<{ id: number; voucherNo: string }>(`/journal/${id}`, { method: "PUT", body: clean(body) }),
   void: (id: number) => api<{ voucherNo: string }>(`/journal/${id}/void`, { method: "POST" }),
 };
 
@@ -50,7 +69,28 @@ export const assetApi = {
   list: () => api<AssetList>("/assets"),
   create: (body: { name: string; acquiredOn: string; cost: number | null; usefulLifeYears: number }) =>
     api<Id>("/assets", { method: "POST", body }),
+  update: (id: number, body: { name: string; acquiredOn: string; cost: number | null; usefulLifeYears: number }) =>
+    api<Id>(`/assets/${id}`, { method: "PUT", body }),
   void: (id: number) => api<Id>(`/assets/${id}/void`, { method: "POST" }),
+};
+
+/** Jumlah data yang akan dikosongkan (lihat backend/src/services/resetService.ts). */
+export interface ResetCounts {
+  firstYear: number;
+  closedMonth: number;
+  dailySales: number; staffBons: number; manualJournals: number; systemJournals: number; assets: number;
+  taxFilings: number; opsFigures: number; closings: number; openingDetails: number;
+  parties: number; events: number; eventNotes: number;
+  /** jumlah akun yang saldo awalnya bukan 0 */
+  openingBalances: number;
+  extraYears: number[];
+}
+
+/** Reset data: kosongkan semua transaksi (owner). */
+export const resetApi = {
+  preview: () => api<ResetCounts & { empty: boolean }>("/reset/preview"),
+  backup: () => api<unknown>("/reset/backup"),
+  run: (body: { confirm: string; pin: string }) => api<ResetCounts>("/reset", { method: "POST", body }),
 };
 
 export const masterApi = {
@@ -58,11 +98,19 @@ export const masterApi = {
   saveSettings: (body: Partial<Settings>) => api<Settings>("/settings", { method: "PUT", body }),
   accounts: () => api<Account[]>("/accounts"),
   saveAccount: (id: number, body: Partial<Account>) => api<Id>(`/accounts/${id}`, { method: "PUT", body }),
+  createAccount: (body: Partial<Account>) => api<Id>("/accounts", { method: "POST", body }),
+  removeAccount: (id: number) => api<RemoveResult>(`/accounts/${id}`, { method: "DELETE" }),
+  openingDetails: () => api<OpeningDetail[]>("/opening-details"),
+  saveOpeningDetails: (accountId: number, rows: { partyId: number; amount: number | null }[]) =>
+    api<Id>(`/accounts/${accountId}/opening-details`, { method: "PUT", body: { rows } }),
   parties: () => api<Party[]>("/parties"),
   createParty: (body: { name: string; type: string }) => api<Id>("/parties", { method: "POST", body }),
   updateParty: (id: number, body: Partial<Party>) => api<Id>(`/parties/${id}`, { method: "PUT", body }),
+  removeParty: (id: number) => api<RemoveResult>(`/parties/${id}`, { method: "DELETE" }),
   events: () => api<EventItem[]>("/events"),
+  saveEventNote: (eventId: number, note: string) => api<Id>(`/events/${eventId}/note`, { method: "PUT", body: { note } }),
   createEvent: (body: { name: string; startDate?: string }) => api<Id>("/events", { method: "POST", body }),
+  removeEvent: (id: number) => api<RemoveResult>(`/events/${id}`, { method: "DELETE" }),
 };
 
 export const reportApi = {
@@ -76,6 +124,8 @@ export const reportApi = {
   events: () => api<{ year: number; closedMonth: number; events: EventResult[] }>("/reports/events"),
   salesRecap: () => api<SalesRecapReport>("/reports/sales-recap"),
   tax: () => api<TaxReport>("/reports/tax"),
+  notes: () => api<NotesReport>("/reports/notes"),
+  saveNotes: (sections: NoteSection[] | null) => api<NotesReport>("/reports/notes", { method: "PUT", body: { sections } }),
 };
 
 export const closingApi = {
@@ -87,6 +137,7 @@ export const closingApi = {
   close: (body: { ackRecurring: boolean; ackNotOkDays: boolean }) =>
     api<{ month: number; checks: { label: string; ok: boolean }[] }>("/closing/close", { method: "POST", body }),
   reopen: () => api<{ month: number }>("/closing/reopen", { method: "POST" }),
+  newYear: () => api<{ year: number }>("/closing/new-year", { method: "POST" }),
 };
 
 export const userApi = {

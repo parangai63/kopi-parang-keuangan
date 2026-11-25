@@ -74,6 +74,9 @@ export async function postAssetVoid(req: Request, res: Response) {
 export async function getClosingPreview(_req: Request, res: Response) {
   res.json(await closing.closingPreview());
 }
+export async function postNewYear(req: Request, res: Response) {
+  res.status(201).json(await closing.startNewYear(req.user!));
+}
 export async function getClosingHistory(_req: Request, res: Response) {
   res.json(await closing.closingHistory());
 }

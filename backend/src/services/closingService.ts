@@ -3,11 +3,75 @@ import prisma from "../prismaClient";
 import { SessionUser } from "../middleware/auth";
 import { BULAN } from "../engine/engine";
 import { badRequest, locked } from "../utils/httpError";
-import { fromISODate, toISODate } from "../utils/dates";
+import { fromISODate, toISODate, todayJakarta } from "../utils/dates";
 import { parseAmount, toNum } from "../utils/money";
-import { assertMonthOpen, getActiveSettings } from "./settingsService";
+import { assertMonthOpen, getActiveSettings, getLatestSettings, getSettingsForYear } from "./settingsService";
 import { computeLedger } from "./ledgerService";
 import { logAudit } from "./auditService";
+
+// ---------- antar tahun buku ----------
+
+/** Bulan di tahun Y baru boleh ditutup setelah Desember Y−1 ditutup (saldo awal Y harus final). */
+async function assertPreviousYearClosed(year: number) {
+  const prev = await getSettingsForYear(year - 1);
+  if (prev && prev.closedMonth < 12) {
+    throw locked(`Tutup buku ${year - 1} belum selesai (s.d. ${prev.closedMonth ? BULAN[prev.closedMonth - 1] : "belum ada bulan"}). Saldo awal ${year} baru final setelah Desember ${year - 1} ditutup.`);
+  }
+}
+
+/** Bulan di tahun Y tidak boleh dibuka kembali bila tahun Y+1 sudah punya bulan ditutup (saldo awalnya ikut berubah). */
+async function assertNextYearUntouched(year: number) {
+  const next = await getSettingsForYear(year + 1);
+  if (next && next.closedMonth > 0) {
+    throw locked(`Tahun buku ${year + 1} sudah ditutup s.d. ${BULAN[next.closedMonth - 1]}. Buka kembali bulan-bulan ${year + 1} dulu, karena saldo awalnya berasal dari ${year}.`);
+  }
+}
+
+/** Status pembuatan tahun buku berikutnya (untuk wizard Tutup Buku). */
+export async function newYearStatus() {
+  const latest = await getLatestSettings();
+  const nextYear = latest.fiscalYear + 1;
+  const today = todayJakarta();
+  const fullyClosed = latest.closedMonth === 12;
+  const yearStarted = today >= `${nextYear}-01-01`;
+  const canStart = fullyClosed || yearStarted;
+  return {
+    latestYear: latest.fiscalYear,
+    nextYear,
+    canStart,
+    reason: canStart ? null : `Tahun buku ${nextYear} bisa dibuat mulai 1 Januari ${nextYear}, atau lebih awal setelah Desember ${latest.fiscalYear} ditutup.`,
+    latestClosedMonth: latest.closedMonth,
+  };
+}
+
+/**
+ * Buat tahun buku baru (rollover). Pengaturan disalin dari tahun terbaru dengan closedMonth = 0, teks CALK ikut
+ * disalin. Saldo awal TIDAK disalin: mesin menghitungnya dari saldo akhir Desember tahun sebelumnya.
+ * Boleh dibuat sebelum Desember ditutup (agar input Januari tidak tertunda), tapi bulan di tahun baru
+ * baru bisa ditutup setelah Desember tahun sebelumnya ditutup.
+ */
+export async function startNewYear(user: SessionUser) {
+  const st = await newYearStatus();
+  if (!st.canStart) throw badRequest(st.reason!);
+  const latest = await getLatestSettings();
+  return prisma.$transaction(async (tx) => {
+    const exists = await tx.setting.findUnique({ where: { fiscalYear: st.nextYear } });
+    if (exists) throw locked(`Tahun buku ${st.nextYear} sudah ada. Muat ulang halaman.`);
+    const { id: _id, fiscalYear: _fy, closedMonth: _cm, createdAt: _ca, updatedAt: _ua, updatedById: _ub, ...copy } = latest;
+    const created = await tx.setting.create({ data: { ...copy, fiscalYear: st.nextYear, closedMonth: 0, updatedById: user.id } });
+    const notes = await tx.reportNote.findMany({ where: { fiscalYear: latest.fiscalYear }, orderBy: { sortOrder: "asc" } });
+    if (notes.length) {
+      await tx.reportNote.createMany({
+        data: notes.map((n) => ({ fiscalYear: st.nextYear, sortOrder: n.sortOrder, title: n.title, body: n.body, updatedById: user.id })),
+      });
+    }
+    await logAudit(tx, {
+      userId: user.id, tableName: "settings", recordId: created.id, action: "CREATE",
+      after: { ...created, copiedFromYear: latest.fiscalYear, previousClosedMonth: latest.closedMonth, copiedNotes: notes.length },
+    });
+    return { year: st.nextYear };
+  });
+}
 
 /** Bulan berikutnya yang akan ditutup + pratinjau semua yang dibutuhkan wizard. */
 export async function closingPreview() {
@@ -15,8 +79,17 @@ export async function closingPreview() {
   const next = s.closedMonth + 1;
   const { result: current } = await computeLedger(prisma, { settings: s });
   const history = current.opsCheck.slice(1, Math.min(12, next) + 1);
+  const prev = await getSettingsForYear(s.fiscalYear - 1);
+  const nextYearRow = await getSettingsForYear(s.fiscalYear + 1);
+  const years = {
+    // Tahun sebelumnya belum selesai ditutup → bulan tahun ini belum boleh ditutup.
+    previousYearOpen: prev && prev.closedMonth < 12 ? { year: prev.fiscalYear, closedMonth: prev.closedMonth } : null,
+    // Tahun berikutnya sudah punya bulan ditutup → bulan tahun ini tidak boleh dibuka kembali.
+    nextYearClosedMonth: nextYearRow ? nextYearRow.closedMonth : null,
+    newYear: s.fiscalYear === (await getLatestSettings()).fiscalYear ? await newYearStatus() : null,
+  };
   if (next > 12) {
-    return { year: s.fiscalYear, closedMonth: s.closedMonth, nextMonth: null, history };
+    return { year: s.fiscalYear, closedMonth: s.closedMonth, nextMonth: null, history, years };
   }
   // Hitung seolah bulan `next` sudah ditutup → jurnal otomatis & cek kesehatan bulan itu.
   const { result: R } = await computeLedger(prisma, { settings: s, closedMonth: next });
@@ -48,6 +121,7 @@ export async function closingPreview() {
     checks: R.checks,
     tolerances: { purchase: Number(s.opsPurchaseTolerancePct), sales: Number(s.opsSalesTolerancePct) },
     history,
+    years,
   };
 }
 
@@ -111,6 +185,7 @@ export async function closeMonth(user: SessionUser, body: { ackRecurring?: boole
   const s = await getActiveSettings();
   const month = s.closedMonth + 1;
   if (month > 12) throw badRequest("Semua bulan di tahun buku ini sudah ditutup.");
+  await assertPreviousYearClosed(s.fiscalYear);
   if (!body.ackRecurring) throw badRequest("Centang konfirmasi bahwa semua tagihan rutin sudah dijurnal.");
   const ops = await prisma.opsMonthlyFigure.findUnique({ where: { year_month: { year: s.fiscalYear, month } } });
   if (!ops) throw badRequest("Isi nilai stok akhir dan total pembelian dari Parang-ops terlebih dahulu.");
@@ -170,6 +245,7 @@ export async function reopenMonth(user: SessionUser) {
   const s = await getActiveSettings();
   const month = s.closedMonth;
   if (month < 1) throw badRequest("Belum ada bulan yang ditutup.");
+  await assertNextYearUntouched(s.fiscalYear);
   return prisma.$transaction(async (tx) => {
     const updated = await tx.setting.updateMany({
       where: { id: s.id, closedMonth: month },

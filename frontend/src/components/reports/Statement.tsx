@@ -27,7 +27,10 @@ export function Statement({ title, load }: { title: string; load: () => Promise<
   return (
     <>
       <div className="rep-bar">
-        <div className="rep-head">KOPI PARANG · {period} · dalam Rupiah</div>
+        <div className="rep-head">
+          <img src="/logo-parang-hitam.png" alt="" className="rep-logo" aria-hidden="true" />
+          <span>KOPI PARANG · {period} · dalam Rupiah</span>
+        </div>
         <ExportMenu build={() => ({ filename: title.toLowerCase().replace(/\s+/g, "-"), title, period, ...toExport(data.columns, data.rows, data.firstHeader) })} />
       </div>
       <ReportTable columns={data.columns} rows={data.rows} firstHeader={data.firstHeader} />

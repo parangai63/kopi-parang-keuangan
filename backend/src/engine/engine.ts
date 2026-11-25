@@ -169,10 +169,14 @@ export function compute(input: EngineInput): EngineResult {
       const idx = (Y - sy) * 12 + (m - sm);
       schedule.push(m <= BLN && idx >= 0 && idx < a.usefulLifeYears * 12 ? perMonth : 0);
     }
-    const accumulated = schedule.reduce((s, v) => s + v, 0);
+    // Penyusutan tahun-tahun sebelum Y (aset yang dibawa dari tahun buku sebelumnya). Jadwalnya sama,
+    // jadi nilainya persis sama dengan saldo Akumulasi Penyusutan yang terbawa sebagai saldo awal.
+    const priorMonths = Math.min(Math.max((Y - sy) * 12 - (sm - 1), 0), a.usefulLifeYears * 12);
+    const priorAccumulated = perMonth * priorMonths;
+    const accumulated = priorAccumulated + schedule.reduce((s, v) => s + v, 0);
     return {
       id: a.id, name: a.name, acquiredOn: a.acquiredOn, cost: a.cost, usefulLifeYears: a.usefulLifeYears,
-      perMonth, depreciationStart: `${sy}-${pad2(sm)}-01`, schedule, accumulated, bookValue: a.cost - accumulated,
+      perMonth, depreciationStart: `${sy}-${pad2(sm)}-01`, schedule, priorAccumulated, accumulated, bookValue: a.cost - accumulated,
     };
   });
   const depreciation = (m: number) => assets.reduce((s, a) => s + a.schedule[m], 0);
@@ -187,8 +191,11 @@ export function compute(input: EngineInput): EngineResult {
   };
 
   // ---------- jurnal otomatis (Logika 2) ----------
+  // Sama seperti sheet JURNAL Excel v2: dibuat untuk semua bulan yang punya data (juga bulan berjalan),
+  // laporan resmi tetap dipotong di closedMonth. Penyusutan bulan > closedMonth = 0 (jadwal aset),
+  // estimasi PBJT hanya untuk bulan yang sudah ditutup (sheet PAJAK juga 0 sesudahnya).
   const auto: LedgerEntry[] = [];
-  for (let m = 1; m <= BLN; m++) {
+  for (let m = 1; m <= 12; m++) {
     const d = lastDayOfMonth(Y, m);
     const o = months[m];
     const nm = BULAN[m - 1];
@@ -215,7 +222,7 @@ export function compute(input: EngineInput): EngineResult {
     push(ACC.COMPLIMENT, ACC.PIUTANG_CAFE, o.compliment, `Compliment bulan ${nm}`, "daily_sales", `${ym}:compliment`);
     push(ACC.PRIVE, ACC.PIUTANG_CAFE, o.ownerBill, `Bill owner bulan ${nm}`, "daily_sales", `${ym}:owner_bill`, "OTOMATIS", "Bill Owner");
     push(ACC.PENYUSUTAN, ACC.AKUM_PENYUSUTAN, depreciation(m), `Penyusutan peralatan bulan ${nm}`, "depreciation", ym);
-    if (settings.accruePbjt) {
+    if (settings.accruePbjt && m <= BLN) {
       push(ACC.PAJAK_RESTORAN, ACC.UTANG_PBJT, Math.max(0, pbjt(m).underpaid), `Estimasi PBJT kurang bayar bulan ${nm}`, "pbjt", ym, "PENYESUAIAN");
     }
   }
@@ -468,11 +475,37 @@ export function compute(input: EngineInput): EngineResult {
   const trxYtd = closedMonths.reduce((s, o) => s + o.transactions, 0);
   const cashDiffCheck = BLN ? Math.round(cashFlow[BLN].closing - cashLedgerTotal) : 0;
   const equityDiffCheck = BLN ? Math.round(equity[BLN].closing - neraca.closing.totalEquity) : 0;
+  // Aset yang sudah diperoleh s.d. akhir bulan tutup buku harus sama dengan saldo akun Peralatan & Akumulasi.
+  const lastClosed = BLN ? lastDayOfMonth(Y, BLN) : `${Y - 1}-12-31`;
+  const ownedAssets = assets.filter((a) => a.acquiredOn <= lastClosed);
+  const assetDiffCheck = ownedAssets.reduce((s, a) => s + a.cost, 0) - closingBalance[ACC.PERALATAN];
+  const accumDiffCheck = ownedAssets.reduce((s, a) => s + a.accumulated, 0) + closingBalance[ACC.AKUM_PENYUSUTAN];
+  const notOkDaysAll = days.filter((d) => d.calc.totalPos > 0 && d.calc.status !== "OK").length;
+  // Hanya aset sebelum tahun buku PERTAMA yang perlu inventarisasi; aset dari tahun buku sebelumnya
+  // di aplikasi ini sudah terbawa lewat saldo awal Peralatan & Akumulasi.
+  const firstYear = settings.firstYear ?? Y;
+  const hasPriorAssets = assets.some((a) => Number(a.acquiredOn.slice(0, 4)) < firstYear);
+  let pbjtUnderpaidYtd = 0;
+  for (let m = 1; m <= BLN; m++) pbjtUnderpaidYtd += Math.max(0, pbjt(m).underpaid);
   const checks: HealthCheck[] = [
     { label: "Neraca seimbang", ok: neraca.closing.balanceCheck === 0, diff: neraca.closing.balanceCheck },
     { label: "Neraca saldo seimbang", ok: tbDiff === 0, diff: tbDiff },
     { label: "Kas di arus kas = kas di neraca", ok: cashDiffCheck === 0, diff: cashDiffCheck },
     { label: "Ekuitas: laporan perubahan = neraca", ok: equityDiffCheck === 0, diff: equityDiffCheck },
+    { label: "Daftar aset tetap = akun Peralatan", ok: assetDiffCheck === 0 && accumDiffCheck === 0, diff: assetDiffCheck || accumDiffCheck },
+    // Peringatan (sheet DASHBOARD Excel v2): tidak membuat laporan salah hitung, tapi perlu ditindaklanjuti.
+    {
+      label: "Hari omzet belum direalisasi / perlu cek", ok: notOkDaysAll === 0, diff: notOkDaysAll, level: "warn",
+      note: `${notOkDaysAll} hari — cek Omzet Harian`,
+    },
+    {
+      label: "Saldo awal aset tetap (sebelum " + firstYear + ")", ok: hasPriorAssets, diff: 0, level: "warn",
+      note: "belum diinventarisasi",
+    },
+    {
+      label: "Estimasi PBJT kurang bayar", ok: pbjtUnderpaidYtd <= 0, diff: pbjtUnderpaidYtd, level: "warn",
+      note: `Rp ${pbjtUnderpaidYtd.toLocaleString("id-ID")} — lihat Pajak`,
+    },
   ];
 
   return {
@@ -482,6 +515,24 @@ export function compute(input: EngineInput): EngineResult {
     netRevenuePerOpenDay: openDays ? netYtd / openDays : 0,
     avgTicket: trxYtd ? netYtd / trxYtd : 0,
   };
+}
+
+/**
+ * Saldo awal 1 Januari tahun berikutnya dari hasil hitung tahun ini (harus dihitung dengan closedMonth = 12).
+ * - Aset & liabilitas: saldo akhir 31 Desember (positif mengikuti saldo normal; boleh negatif, mis. bank).
+ * - Pendapatan & beban: 0 (sudah masuk laba tahun berjalan).
+ * - Prive: 0 (ditutup ke ekuitas). Ekuitas Kopi Parang: diabaikan, mesin menghitungnya = aset − liabilitas,
+ *   sehingga ekuitas awal tahun baru = ekuitas akhir tahun ini (modal + laba − prive).
+ * Hasil: nama akun → openingBalance.
+ */
+export function carryForwardOpening(prev: EngineResult): Record<string, number> {
+  if (prev.closedMonth !== 12) throw new Error("Saldo awal tahun berikutnya harus dihitung dari tahun yang dihitung s.d. Desember.");
+  const out: Record<string, number> = {};
+  for (const a of prev.accounts) {
+    const signed = prev.closingBalance[a.name] ?? 0;
+    out[a.name] = a.group === "ASET" || a.group === "LIABILITAS" ? (a.normal === "D" ? signed : -signed) : 0;
+  }
+  return out;
 }
 
 /** Buku besar satu akun s.d. closedMonth, dengan saldo berjalan mengikuti saldo normal. */

@@ -14,6 +14,10 @@ export interface Me {
   /** tahun buku aktif & bulan terakhir yang ditutup (0 = belum ada), untuk chip di header */
   fiscalYear: number;
   closedMonth: number;
+  /** tahun buku terbaru (tujuan input harian); fiscalYear bisa lebih kecil bila tahun lama dipilih */
+  latestYear: number;
+  /** semua tahun buku, urut naik */
+  fiscalYears: { year: number; closedMonth: number }[];
 }
 
 export interface Settings {
@@ -44,9 +48,22 @@ export interface Account {
   cashCategory: string;
   cashFlowLine: string | null;
   openingBalance: number;
+  /** false = tahun buku kedua dst.: saldo awal dihitung dari saldo akhir tahun sebelumnya */
+  openingEditable?: boolean;
   description: string | null;
   isActive: boolean;
   isUsed: boolean;
+  /** akun beban tambahan (6112 dst.) yang boleh dihapus dari dropdown; akun bawaan tidak */
+  isCustom?: boolean;
+}
+
+/** Rincian saldo awal 1 Januari per pihak (piutang/utang). */
+export interface OpeningDetail {
+  id: number;
+  accountId: number;
+  partyId: number;
+  partyName: string;
+  amount: number;
 }
 
 export interface Party {
@@ -177,6 +194,9 @@ export interface HealthCheck {
   label: string;
   ok: boolean;
   diff: number;
+  /** "warn" = peringatan (⚠), bukan kesalahan hitung */
+  level?: "warn";
+  note?: string;
 }
 
 export interface EventResult {
@@ -187,6 +207,23 @@ export interface EventResult {
   profit: number;
   costPerRevenue: number | null;
   count: number;
+  /** hanya di /reports/events */
+  id?: number | null;
+  note?: string;
+}
+
+/** CALK: bagian teks + hasil isian placeholder. */
+export interface NoteSection {
+  title: string;
+  body: string;
+}
+
+export interface NotesReport {
+  year: number;
+  closedMonth: number;
+  isDefault: boolean;
+  variables: { key: string; label: string; value: string }[];
+  sections: (NoteSection & { rendered: string })[];
 }
 
 export interface Dashboard {
@@ -345,6 +382,11 @@ export interface AssetSchedule {
   usefulLifeYears: number;
   perMonth: number;
   depreciationStart: string;
+  /** penyusutan per bulan, indeks 1–12 (indeks 0 tidak dipakai) */
+  schedule: number[];
+  /** akumulasi s.d. 31 Desember tahun sebelumnya (aset yang terbawa dari tahun buku lalu) */
+  priorAccumulated: number;
+  /** akumulasi s.d. bulan tutup buku, termasuk priorAccumulated */
   accumulated: number;
   bookValue: number;
 }
@@ -383,6 +425,16 @@ export interface ClosingPreview {
   checks?: HealthCheck[];
   tolerances?: { purchase: number; sales: number };
   history: OpsCheckMonth[];
+  years: ClosingYears;
+}
+
+export interface ClosingYears {
+  /** tahun sebelumnya belum ditutup s.d. Desember → bulan tahun ini belum boleh ditutup */
+  previousYearOpen: { year: number; closedMonth: number } | null;
+  /** closedMonth tahun berikutnya (null = belum dibuat) → > 0 berarti bulan tahun ini tidak bisa dibuka kembali */
+  nextYearClosedMonth: number | null;
+  /** hanya saat melihat tahun buku terbaru */
+  newYear: { latestYear: number; nextYear: number; canStart: boolean; reason: string | null; latestClosedMonth: number } | null;
 }
 
 export interface UserRow {

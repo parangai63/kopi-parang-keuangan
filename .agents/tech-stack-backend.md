@@ -25,7 +25,7 @@ backend/
     migrations/           migrasi SQL — jangan edit migrasi yang sudah di-deploy
     seed.ts               data DUMMY + 3 akun PIN (diuji mesin sebelum ditulis); seed-legacy.ts = data asli
     seedShared.ts         wipe + pembuatan akun, dipakai kedua seed
-    legacyData.ts         pembaca prototype/data.js → bentuk input mesin
+    excelData.ts          pembaca file Excel v2 langsung (kolom input) → input mesin + cek ke sheet MUTASI
   scripts/check-patokan.ts  uji angka patokan Excel v2 terhadap mesin TS
   src/
     engine/               MESIN HITUNG MURNI (tanpa Prisma/Express): engine.ts, types.ts

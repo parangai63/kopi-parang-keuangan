@@ -59,13 +59,19 @@ apiRoutes.post("/assets/:id/void", ownerOnly, h(ops.postAssetVoid));
 apiRoutes.get("/parties", staff, h(admin.getParties));
 apiRoutes.post("/parties", staff, h(admin.postParty));
 apiRoutes.put("/parties/:id", staff, h(admin.putParty));
+apiRoutes.delete("/parties/:id", staff, h(admin.deleteParty));
 apiRoutes.get("/events", staff, h(admin.getEventList));
 apiRoutes.post("/events", staff, h(admin.postEvent));
+apiRoutes.delete("/events/:id", staff, h(admin.deleteEvent));
+apiRoutes.put("/events/:id/note", staff, h(admin.putEventNote));
 
 // Daftar akun & pengaturan: admin lihat, owner ubah.
 apiRoutes.get("/accounts", staff, h(admin.getAccounts));
 apiRoutes.post("/accounts", ownerOnly, h(admin.postAccount));
 apiRoutes.put("/accounts/:id", ownerOnly, h(admin.putAccount));
+apiRoutes.delete("/accounts/:id", ownerOnly, h(admin.deleteAccount));
+apiRoutes.get("/opening-details", staff, h(admin.getOpeningDetails));
+apiRoutes.put("/accounts/:id/opening-details", ownerOnly, h(admin.putOpeningDetails));
 apiRoutes.get("/settings", staff, h(admin.getSettings));
 apiRoutes.put("/settings", ownerOnly, h(admin.putSettings));
 
@@ -76,6 +82,7 @@ apiRoutes.put("/closing/tax-filing/:month", staff, h(ops.putTaxFiling));
 apiRoutes.put("/closing/ops-figures/:month", staff, h(ops.putOpsFigures));
 apiRoutes.post("/closing/close", ownerOnly, h(ops.postClose));
 apiRoutes.post("/closing/reopen", ownerOnly, h(ops.postReopen));
+apiRoutes.post("/closing/new-year", ownerOnly, h(ops.postNewYear));
 
 // Laporan (hanya baca)
 apiRoutes.get("/reports/dashboard", staff, h(report.getDashboard));
@@ -88,9 +95,14 @@ apiRoutes.get("/reports/general-ledger", staff, h(report.getGeneralLedger));
 apiRoutes.get("/reports/events", staff, h(report.getEvents));
 apiRoutes.get("/reports/sales-recap", staff, h(report.getSalesRecap));
 apiRoutes.get("/reports/tax", staff, h(report.getTax));
+apiRoutes.get("/reports/notes", staff, h(report.getNotes));
+apiRoutes.put("/reports/notes", ownerOnly, h(report.putNotes));
 
 // Pengguna & riwayat perubahan: owner saja.
 apiRoutes.get("/users", ownerOnly, h(admin.getUsers));
 apiRoutes.post("/users", ownerOnly, h(admin.postUser));
 apiRoutes.put("/users/:id", ownerOnly, h(admin.putUser));
 apiRoutes.get("/audit-logs", ownerOnly, h(admin.getAuditLogs));
+apiRoutes.get("/reset/preview", ownerOnly, h(admin.getResetPreview));
+apiRoutes.get("/reset/backup", ownerOnly, h(admin.getResetBackup));
+apiRoutes.post("/reset", ownerOnly, h(admin.postReset));

@@ -29,7 +29,9 @@ export default function LoginPage() {
     <div className="login">
       <div className="login-card">
         <div className="brand">
-          <div className="mark" aria-hidden="true" />
+          <div className="mark" aria-hidden="true">
+            <img src="/logo-parang.png" alt="" className="mark-img" />
+          </div>
           <div>
             <b>Kopi Parang</b>
             <span>Keuangan · omzet, jurnal, aset, pajak, laporan</span>

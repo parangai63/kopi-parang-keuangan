@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authRoutes, apiRoutes } from "./routes";
 import { errorMiddleware } from "./utils/httpError";
+import { fiscalYearMiddleware } from "./utils/fiscalContext";
 
 const app = express();
 
@@ -14,6 +15,7 @@ const origins = (process.env.KPK_CORS_ORIGIN ?? "http://localhost:5174")
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
+app.use(fiscalYearMiddleware);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "kopi-parang-keuangan-backend" });

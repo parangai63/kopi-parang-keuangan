@@ -147,6 +147,7 @@ Semua nominal disimpan sebagai bilangan bulat Rupiah (`BIGINT`), bukan desimal a
 | `tax_filings` | year, month, reported\_revenue, pbjt\_paid, sspd\_no, filed\_on | Input di wizard Tutup Buku: omzet yang dilaporkan ke Bapenda dan PBJT yang dibayar. |
 | `ops_monthly_figures` | year, month, stock\_value, purchases\_total, sales\_total, entered\_by, entered\_at, note | Tiga angka dari Parang-ops, diinput manual saat tutup buku. `stock_value` dan `purchases_total` wajib, `sales_total` boleh kosong. |
 | `event_notes` | event\_id, note | Keterangan manual di halaman Analisis Event. |
+| `report_notes` | fiscal\_year, sort\_order, title, body | Teks CALK per tahun buku; `{placeholder}` di body diisi angka laporan. Kosong = template bawaan (teks sheet CALK Excel v2). |
 | `period_closings` | year, month, closed\_by, closed\_at, reopened\_by, reopened\_at | Riwayat tutup buku. |
 | `users` | name, email, role (owner, admin, kasir), password\_hash, totp\_secret, pin\_hash, is\_active | Owner/admin: email + kata sandi + 2FA. Kasir: PIN. Tidak berbagi tabel pengguna dengan Parang-ops. |
 | `audit_logs` | user\_id, table\_name, record\_id, action, before (JSON), after (JSON), at | Semua perubahan pada tabel di atas. |
@@ -270,7 +271,8 @@ Akun pendapatan dibaca sebagai −mutasi, akun beban sebagai +mutasi.
 - Pencapaian target = omzet bersih ÷ target; pertumbuhan = omzet bersih bulan ini ÷ bulan lalu − 1.
 - Hari perlu dicek = jumlah hari buka yang statusnya bukan "OK".
 - Dashboard memakai angka Laba Rugi dan Rekap Omzet s.d. closed\_month. Struktur biaya: HPP, gaji, sewa, marketing, tagihan bulanan, beban lainnya, sisa laba.
-- Cek kesehatan data (tampil hijau/merah): neraca seimbang, neraca saldo seimbang, kas di arus kas = kas di neraca, ekuitas di perubahan ekuitas = ekuitas di neraca.
+- Cek kesehatan data (tampil hijau/merah): neraca seimbang, neraca saldo seimbang, kas di arus kas = kas di neraca, ekuitas di perubahan ekuitas = ekuitas di neraca, daftar aset tetap = saldo akun Peralatan dan Akumulasi Penyusutan.
+- Peringatan (tampil kuning, seperti sheet DASHBOARD Excel v2): jumlah hari omzet yang belum direalisasi atau perlu dicek, aset tetap sebelum tahun buku belum diinventarisasi, estimasi PBJT kurang bayar s.d. bulan tutup buku.
 
 ### 12. Cek dengan Parang-ops (per bulan)
 
@@ -278,6 +280,22 @@ Akun pendapatan dibaca sebagai −mutasi, akun beban sebagai +mutasi.
 - Selisih pembelian = `purchases_total` (Parang-ops) − pembelian menurut Keuangan. Ditandai merah jika |selisih| > `ops_purchase_tolerance_pct` × pembelian menurut Keuangan. Penyebab umum: nota hanya dicatat di satu aplikasi, beda tanggal, atau belanja non-stok yang dibebankan ke akun bahan baku.
 - Selisih omzet = `sales_total` (Parang-ops) − omzet tercatat (Σ total\_pos). Hanya dihitung jika `sales_total` diisi; ditandai jika |selisih| > `ops_sales_tolerance_pct` × omzet tercatat.
 - Kedua cek ini **tidak** memblokir tutup buku. Hasilnya tampil di wizard dan di riwayat cek per bulan, dan owner bisa menambah catatan.
+
+### 13. Tahun buku baru (rollover)
+
+- Owner membuat tahun buku berikutnya dari wizard Tutup Buku: mulai 1 Januari tahun itu, atau lebih awal bila Desember tahun berjalan sudah ditutup. Baris `settings` baru disalin dari tahun terakhir dengan `closed_month` = 0; teks CALK (`report_notes`) ikut disalin.
+- Saldo awal tahun buku pertama diinput di Daftar Akun (`accounts.opening_balance`). Saldo awal tahun berikutnya **tidak disimpan**: dihitung setiap kali dari saldo akhir 31 Desember tahun sebelumnya (dihitung s.d. Desember), sehingga koreksi tahun lalu otomatis terbawa.
+  - Aset & liabilitas: saldo akhir 31 Desember. Pendapatan, beban, dan Prive: 0. Ekuitas Kopi Parang: dihitung seperti biasa (aset − liabilitas), sehingga ekuitas awal = ekuitas akhir tahun lalu.
+  - Aset tetap terus disusutkan sesuai jadwalnya; akumulasi per aset = penyusutan tahun-tahun sebelumnya + tahun berjalan.
+- Bulan di tahun Y baru boleh ditutup setelah Desember Y−1 ditutup. Bulan di tahun Y−1 tidak boleh dibuka kembali selama tahun Y punya bulan yang ditutup. Saldo awal tahun pertama tidak bisa diubah bila tahun berikutnya punya bulan yang ditutup.
+- Owner/admin memilih tahun buku yang dilihat di header (default: tahun terbaru). Input dan laporan mengikuti tahun yang dipilih; kasir selalu di tahun terbaru.
+
+### 14. Reset data (khusus owner)
+
+- Di Pengaturan, owner bisa mengosongkan SEMUA data transaksi (mis. data dummy/uji coba sebelum memakai data asli). Ini satu-satunya pengecualian dari aturan soft delete.
+- Dihapus: omzet harian & bon, semua jurnal (termasuk arsip jurnal sistem), aset tetap, SSPD, angka Parang-ops, riwayat tutup buku, rincian saldo awal per pihak, pihak, event & catatannya, tahun buku selain yang pertama. Saldo awal semua akun menjadi 0 dan bulan tutup buku menjadi 0.
+- Tetap: daftar akun, pengguna & PIN, pengaturan tahun buku pertama, teks CALK tahun pertama, dan audit log.
+- Pengaman: pratinjau jumlah data, wajib unduh cadangan JSON, ketik `RESET` + PIN owner, satu transaksi database, reset dicatat di audit log. Bisa dimatikan di server dengan `KPK_ALLOW_RESET=0`.
 
 ## Alur kerja
 

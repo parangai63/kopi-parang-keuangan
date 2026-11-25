@@ -1,10 +1,10 @@
 import { Prisma, Setting } from "@prisma/client";
 import prisma from "../prismaClient";
-import { compute } from "../engine/engine";
+import { carryForwardOpening, compute } from "../engine/engine";
 import { EngineInput, EngineResult } from "../engine/types";
 import { toISODate } from "../utils/dates";
 import { toNum, toNum0 } from "../utils/money";
-import { getActiveSettings, toEngineSettings } from "./settingsService";
+import { getActiveSettings, getFirstFiscalYear, getSettingsForYear, toEngineSettings } from "./settingsService";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -23,6 +23,8 @@ export async function loadEngineInput(db: Db = prisma, settingsArg?: Setting, cl
   const Y = s.fiscalYear;
   const from = new Date(Date.UTC(Y, 0, 1));
   const to = new Date(Date.UTC(Y + 1, 0, 1));
+  const firstYear = await getFirstFiscalYear(db);
+  const opening = Y > firstYear ? await openingFromPreviousYear(db, Y) : null;
 
   const [accounts, daily, entries, assets, filings, ops] = await Promise.all([
     db.account.findMany({ orderBy: { code: "asc" } }),
@@ -36,13 +38,14 @@ export async function loadEngineInput(db: Db = prisma, settingsArg?: Setting, cl
       include: { lines: { include: { account: true } }, event: true, party: true },
       orderBy: [{ date: "asc" }, { id: "asc" }],
     }),
-    db.fixedAsset.findMany({ where: { voidedAt: null }, orderBy: [{ acquiredOn: "asc" }, { id: "asc" }] }),
+    // Aset yang diperoleh sesudah tahun ini belum ada di tahun ini.
+    db.fixedAsset.findMany({ where: { voidedAt: null, acquiredOn: { lt: to } }, orderBy: [{ acquiredOn: "asc" }, { id: "asc" }] }),
     db.taxFiling.findMany({ where: { year: Y } }),
     db.opsMonthlyFigure.findMany({ where: { year: Y } }),
   ]);
 
   return {
-    settings: toEngineSettings(s, closedMonthOverride),
+    settings: { ...toEngineSettings(s, closedMonthOverride), firstYear },
     accounts: accounts.map((a) => ({
       code: a.code,
       name: a.name,
@@ -50,7 +53,8 @@ export async function loadEngineInput(db: Db = prisma, settingsArg?: Setting, cl
       normal: a.normalSide,
       cashCategory: a.cashCategory,
       cashFlowLine: a.cashFlowLine,
-      openingBalance: toNum0(a.openingBalance),
+      // Tahun pertama: saldo awal yang diinput di Daftar Akun. Tahun berikutnya: saldo akhir tahun sebelumnya.
+      openingBalance: opening ? opening[a.name] ?? 0 : toNum0(a.openingBalance),
     })),
     daily: daily.map((d) => ({
       date: toISODate(d.date),
@@ -102,6 +106,19 @@ export async function loadEngineInput(db: Db = prisma, settingsArg?: Setting, cl
       ]),
     ),
   };
+}
+
+/**
+ * Saldo awal 1 Januari tahun Y = saldo akhir 31 Desember tahun Y−1, dihitung ulang setiap kali (tidak disimpan),
+ * supaya perbaikan di tahun sebelumnya (mis. Desember dibuka kembali) otomatis terbawa.
+ * Tahun Y−1 dihitung s.d. Desember walau belum semua bulannya ditutup: selama itu saldo awal Y bersifat sementara,
+ * dan bulan di tahun Y tidak bisa ditutup sebelum Desember Y−1 ditutup (closingService).
+ */
+export async function openingFromPreviousYear(db: Db, year: number): Promise<Record<string, number>> {
+  const prev = await getSettingsForYear(year - 1, db);
+  if (!prev) throw new Error(`Tahun buku ${year - 1} tidak ditemukan; saldo awal ${year} tidak bisa dihitung.`);
+  const { result } = await computeLedger(db, { settings: prev, closedMonth: 12 });
+  return carryForwardOpening(result);
 }
 
 /** Hitung semua laporan untuk tahun buku aktif. */

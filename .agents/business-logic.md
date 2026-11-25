@@ -68,8 +68,13 @@ Tutup buku September 2026 (data asli Jan–Sep):
 
 Setiap perubahan di `backend/src/engine/` WAJIB diikuti `cd backend && npm run check:patokan` sampai
 keluar "Semua angka cocok". Selisih 1 rupiah pun harus dicari penyebabnya (biasanya pembulatan).
-4 cek kesehatan (neraca seimbang, neraca saldo seimbang, kas arus kas = kas neraca, ekuitas perubahan =
-ekuitas neraca) harus selalu hijau.
+5 cek kesehatan (neraca seimbang, neraca saldo seimbang, kas arus kas = kas neraca, ekuitas perubahan =
+ekuitas neraca, daftar aset tetap = akun Peralatan & Akumulasi) harus selalu hijau. Cek ber-`level: "warn"`
+(hari omzet perlu cek, aset pra-tahun buku belum diinventarisasi, estimasi PBJT kurang bayar) adalah peringatan
+seperti di sheet DASHBOARD Excel v2, bukan kesalahan hitung.
+
+Akun baru dari UI dibatasi beban usaha kode 61xx: Laba Rugi & Neraca menyusun pos dari akun bernama tertentu
+(`ACC` di engine.ts), jadi akun kelompok lain akan hilang dari laporan dan membuat neraca tidak seimbang.
 
 ## 4. Constraint data & proteksi sistem
 
@@ -79,7 +84,13 @@ ekuitas neraca) harus selalu hijau.
 * **Bulan yang ditutup terkunci** (`month <= settings.closedMonth`): tidak boleh ada tambah/ubah/batal
   data bertanggal di bulan itu → HTTP 423. Hanya owner yang bisa membuka kembali, dan itu tercatat.
 * `closedMonth` hanya berubah lewat wizard Tutup Buku / buka kembali — tidak lewat PUT `/settings`.
+* **Antar tahun buku** (spesifikasi Logika 13): saldo awal tahun ke-2 dst. = saldo akhir Desember tahun lalu,
+  dihitung, tidak disimpan. Bulan di tahun Y baru bisa ditutup setelah Desember Y−1 ditutup; bulan Y−1 tidak bisa
+  dibuka kembali selama tahun Y punya bulan ditutup. Tahun baru dibuat owner lewat `POST /closing/new-year`.
 * **Soft delete saja** (`voided_at`) untuk jurnal & aset. Tidak ada hard delete data transaksi.
+  Satu-satunya pengecualian: **Reset data** (Pengaturan, khusus owner; `resetService.ts`) yang mengosongkan semua
+  data transaksi, dengan pratinjau, cadangan JSON, konfirmasi RESET + PIN, dan audit log tetap utuh.
+  Bisa dimatikan dengan `KPK_ALLOW_RESET=0`.
 * Akun yang sudah dipakai tidak boleh dihapus, diganti kelompok, saldo normal, atau namanya — hanya
   dinonaktifkan (mesin merujuk akun inti berdasarkan nama, lihat `ACC` di `engine.ts`).
 * Validasi jurnal: akun debet & kredit wajib dan tidak sama, nominal > 0, tanggal di tahun buku aktif

@@ -27,10 +27,11 @@ Sumber kebenaran: `docs/SPESIFIKASI.md`. Kalau kode dan spesifikasi berbeda, iku
 ## Peta kode
 
 ```
-backend/src/engine/engine.ts     mesin hitung murni (compute, calcDay, generalLedger) — port 1:1 prototype/engine.js
+backend/src/engine/engine.ts     mesin hitung murni (compute, calcDay, generalLedger) — asal port prototype/engine.js;
+                                 kini jurnal otomatis dibuat untuk semua bulan berdata, sama seperti sheet JURNAL Excel
 backend/src/services/            business logic + Prisma + audit (ledgerService memuat DB → input mesin)
 backend/src/routes/index.ts      semua route + hak akses per peran
-backend/prisma/schema.prisma     model data; seed.ts = data dummy, seed-legacy.ts = impor prototype/data.js (data asli)
+backend/prisma/schema.prisma     model data; seed.ts = data dummy, seed-legacy.ts = impor file Excel v2 langsung (excelData.ts)
 frontend/src/pages/              satu halaman per menu
 frontend/src/components/reports/ ReportTable + buildRows (tampilan & ekspor dari definisi yang sama)
 ```
@@ -54,7 +55,11 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 
 - Nominal selalu integer rupiah (BigInt di database), bukan float.
 - Jurnal OTOMATIS/PENYESUAIAN dibuat ulang mesin; jangan diinput atau diimpor.
-- Hapus = soft delete (`voided_at`); bulan yang ditutup terkunci (HTTP 423).
+- Hapus = soft delete (`voided_at`); bulan yang ditutup terkunci (HTTP 423). Pengecualian satu-satunya: Reset data
+  (`services/resetService.ts`, owner) yang mengosongkan semua transaksi; audit log tidak pernah dihapus.
+- Tahun buku per permintaan: header `X-Fiscal-Year` → `getActiveSettings()` (AsyncLocalStorage, `utils/fiscalContext.ts`);
+  tanpa header = tahun terbaru. Saldo awal tahun ke-2 dst. dihitung dari saldo akhir Desember tahun sebelumnya
+  (`ledgerService.openingFromPreviousYear` + `carryForwardOpening`), tidak disimpan. Lihat spesifikasi Logika 13.
 - Setiap mutasi menulis `audit_logs`.
 - Kalau mengubah `backend/src/engine/`, jalankan `npm run check:patokan` sebelum selesai, dan samakan
   `frontend/src/utils/calcDay.ts` jika rumus omzet harian berubah.
@@ -62,10 +67,6 @@ Total aset 101.739.014 · Liabilitas 74.619.781 · Ekuitas 27.119.233 · Omzet b
 
 ## Belum dikerjakan (lihat fase di spesifikasi)
 
-- Skrip migrasi yang membaca file Excel v2 langsung (`seed-legacy.ts` sementara memakai `prototype/data.js`).
 - Login email + kata sandi + 2FA untuk owner/admin (kodenya ada di `authService.loginWithPassword`, belum dipakai UI; sementara semua peran login PIN).
-- Rincian saldo awal per pihak (`opening_balance_details`) belum diisi seed.
-- CALK di frontend — Fase 3. (Rekap Omzet, Pajak PBJT, Analisis Event sudah ada di menu Analisis;
-  keterangan per event dari `event_notes` belum ada endpoint-nya.)
-- Edit jurnal & aset dari UI (endpoint PUT sudah ada), kelola akun dari UI (endpoint sudah ada).
-- Pembuatan tahun buku baru (rollover 2027).
+- Akumulasi penyusutan awal tahun untuk aset sebelum 2026 (perlu kolom baru di `fixed_assets` + saldo awal
+  Peralatan/Akumulasi; menunggu inventarisasi owner).

@@ -7,6 +7,7 @@ export async function wipe(prisma: PrismaClient) {
   console.log("SEED_RESET=1 → menghapus semua data…");
   await prisma.$transaction([
     prisma.auditLog.deleteMany(),
+    prisma.reportNote.deleteMany(),
     prisma.journalLine.deleteMany(),
     prisma.journalEntry.deleteMany(),
     prisma.dailyStaffBon.deleteMany(),

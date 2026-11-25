@@ -1,36 +1,61 @@
 // Komponen UI kecil yang dipakai di semua halaman. Kelas CSS mengikuti rancangan original
 // (original/kopi-parang-keuangan-artifact.html) — lihat src/index.css.
 import { ReactNode } from "react";
-import { Loader2, Lock, LogOut } from "lucide-react";
+import { CalendarCheck, Loader2, Lock, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { BULAN } from "../utils/format";
 import type { DayStatus, Role } from "../types";
+import Select from "./Select";
 
 export const ROLE_LABEL: Record<Role, string> = { OWNER: "Owner", ADMIN: "Admin keuangan", KASIR: "Kasir" };
 
-/** Header halaman: judul (Literata) + sub, lalu chip tutup buku, pengguna yang masuk, dan tombol keluar. */
+/** Lingkaran inisial nama pengguna (maks. 2 huruf). */
+export function Avatar({ name }: { name: string }) {
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  return <span className="avatar" aria-hidden="true">{initials || "?"}</span>;
+}
+
+/** Header halaman: baris utilitas (chip tutup buku, pengguna, keluar), lalu judul + sub dengan tombol aksi halaman di kanan. */
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, switchYear } = useAuth();
+  // Pemilih tahun buku muncul untuk owner/admin bila sudah ada lebih dari satu tahun buku.
+  const canPickYear = user && user.role !== "KASIR" && user.fiscalYears.length > 1;
+  const oldYear = user && user.fiscalYear !== user.latestYear;
   return (
     <header className="top">
-      <div>
-        <h1>{title}</h1>
-        {subtitle && <div className="sub">{subtitle}</div>}
-      </div>
-      <div className="top-right">
-        {actions}
-        {user && (
-          <>
-            <span className="chip">Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
-            <span className="seg-label">Masuk sebagai</span>
-            <span className="who">
-              {user.name} <small>· {ROLE_LABEL[user.role]}</small>
+      {user && (
+        <div className="top-util">
+          {canPickYear && (
+            <span className={`chip year-pick${oldYear ? " old" : ""}`} title={oldYear ? `Sedang melihat tahun buku lama. Tahun berjalan: ${user.latestYear}.` : "Tahun buku yang dilihat"}>
+              Tahun buku
+              <Select
+                size="chip"
+                value={user.fiscalYear}
+                options={[...user.fiscalYears].reverse().map((y) => ({ value: y.year, label: String(y.year), hint: y.year === user.latestYear ? "berjalan" : undefined }))}
+                onChange={(v) => v && switchYear(v)}
+                ariaLabel="Pilih tahun buku"
+                searchable={false}
+              />
             </span>
-            <button className="btn ghost sm" onClick={logout}>
-              <LogOut /> Keluar
-            </button>
-          </>
-        )}
+          )}
+          <span className="chip"><CalendarCheck aria-hidden="true" />Tutup buku s.d. {user.closedMonth ? `${BULAN[user.closedMonth - 1]} ${user.fiscalYear}` : "–"}</span>
+          <span className="user-pill" title="Masuk sebagai">
+            <Avatar name={user.name} />
+            <span className="who">
+              {user.name} <small>{ROLE_LABEL[user.role]}</small>
+            </span>
+          </span>
+          <button className="btn ghost sm" onClick={logout}>
+            <LogOut /> Keluar
+          </button>
+        </div>
+      )}
+      <div className="top-main">
+        <div className="top-title">
+          <h1>{title}</h1>
+          {subtitle && <div className="sub">{subtitle}</div>}
+        </div>
+        {actions && <div className="top-right">{actions}</div>}
       </div>
     </header>
   );
@@ -93,16 +118,21 @@ export function Kpi({ label, value, sub, tone }: { label: string; value: string;
   );
 }
 
-export function CheckList({ checks }: { checks: { label: string; ok: boolean; diff?: number }[] }) {
+/** Cek kesehatan data: ✓ hijau, ! merah (salah hitung), ⚠ kuning (peringatan yang perlu ditindaklanjuti). */
+export function CheckList({ checks }: { checks: { label: string; ok: boolean; diff?: number; level?: "warn"; note?: string }[] }) {
   return (
     <ul className="checks">
-      {checks.map((c) => (
-        <li key={c.label}>
-          <span className={`dot ${c.ok ? "ok" : "bad"}`}>{c.ok ? "✓" : "!"}</span>
-          {c.label}
-          {!c.ok && c.diff !== undefined && <span className="neg"> selisih {c.diff.toLocaleString("id-ID")}</span>}
-        </li>
-      ))}
+      {checks.map((c) => {
+        const tone = c.ok ? "ok" : c.level === "warn" ? "warn" : "bad";
+        return (
+          <li key={c.label}>
+            <span className={`dot ${tone}`}>{c.ok ? "✓" : c.level === "warn" ? "⚠" : "!"}</span>
+            {c.label}
+            {!c.ok && c.level === "warn" && c.note && <span className="warn-text"> {c.note}</span>}
+            {!c.ok && c.level !== "warn" && c.diff !== undefined && <span className="neg"> selisih {c.diff.toLocaleString("id-ID")}</span>}
+          </li>
+        );
+      })}
     </ul>
   );
 }
